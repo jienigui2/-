@@ -1,0 +1,24 @@
+{
+  "target_vm": {
+    "name": "XMG5100丛雨2.112",
+    "snapshot": "NMC3.16.0"
+  },
+  "network_config": {
+    "ip_address": "10.156.2.112/15",
+    "default_gateway": "10.157.255.254"
+  },
+  "kb_packages": {
+    "historical": [],
+    "current": "Wlan-2025111403"
+  },
+  "customer_config": "D:\\Users\\SXF-Admin\\Desktop\\新建文件夹 (2)\\2026_01_28_102600.bcf",
+  "login_credentials": {
+    "username": "admin",
+    "password": "Qwer1234"
+  },
+  "hci_device": {
+    "ip": "10.156.1.50",
+    "username": "admin",
+    "password": "Msgt@202601"
+  }
+}

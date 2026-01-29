@@ -1,0 +1,18 @@
+{
+  "kb_credentials": {
+    "username": "谭俊杰59272",
+    "password": "Qwer1234"
+  },
+  "kb_compare": {
+    "history_packages": [
+      {
+        "name": "KB-NACAP-20250716-zhaohang-daping-wns3.15.0-CAxxx-001"
+      }
+    ],
+    "pending_packages": [
+      {
+        "name": "KB-NACAP-Wlan-2025101501-001"
+      }
+    ]
+  }
+}

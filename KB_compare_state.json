@@ -1,0 +1,58 @@
+{
+  "code": "success",
+  "data": {
+    "conflict_res": {
+      "history_kb_packages_conflict": [],
+      "pending_kb_packages_conflict": [
+        {
+          "file_name": "/wns/lib/libwns_conf.so",
+          "value": [
+            "KB-NACAP-20250716-zhaohang-daping-wns3.15.0-CAxxx-001",
+            "KB-NACAP-Wlan-2025101501-001"
+          ]
+        }
+      ]
+    },
+    "kb_res": [
+      {
+        "author": "hxy",
+        "backend_count": 14,
+        "description": "git路径：https://code.sundray.com.cn/wac/project_build/wns3.15.0/tree/zhaohang_daping_3.15.0",
+        "id": "001",
+        "js_count": 0,
+        "kbname": "KB-NACAP-20250716-zhaohang-daping-wns3.15.0-CAxxx-001",
+        "need_repack_ssu": true,
+        "parent": "KB-WACAP-20250716-zhaohang-daping-wns3.15.0-CAxxx",
+        "parent_des": "招行大屏迁移到wns3.15.0",
+        "php_count": 0,
+        "updatetime": "2025-7-17/11:43:04",
+        "version": [
+          "WAC3.15.0",
+          "vWAC3.15.0",
+          "NMC3.15.0",
+          "vNMC3.15.0"
+        ]
+      },
+      {
+        "author": "zrh",
+        "backend_count": 2,
+        "description": "",
+        "id": "001",
+        "js_count": 6,
+        "kbname": "KB-NACAP-Wlan-2025101501-001",
+        "need_repack_ssu": true,
+        "parent": "KB-WACAP-Wlan-2025101501",
+        "parent_des": "平安银行-tacacs对接",
+        "php_count": 33,
+        "updatetime": "2025-12-22/10:00:09",
+        "version": [
+          "WAC3.15.0",
+          "vWAC3.15.0",
+          "NMC3.15.0",
+          "vNMC3.15.0"
+        ]
+      }
+    ]
+  },
+  "state": "已完成"
+}

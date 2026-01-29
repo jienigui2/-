@@ -1,0 +1,249 @@
+{
+  "data": {
+    "rows": [
+      {
+        "cur_rd_env": "ShenZhen",
+        "fields": {
+          "actual_effort": null,
+          "assigner": {
+            "display_name": "谭俊杰59272",
+            "email": "59272@sangfor.com",
+            "id": 19908,
+            "username": "59272"
+          },
+          "attachment": [
+            {
+              "belong_type": "defect",
+              "creator_username": "52012",
+              "extension": ".7z",
+              "file_disgest": "814683933b225739a9a96a1bb0a7df25",
+              "file_name": "内存泄漏和覆盖率.7z",
+              "file_path": "https://td.atrust.sangfor.com/public/defect/2026/01/16/内存泄漏和覆盖率-20260116-x4pirthaxfsnbyxn.7z",
+              "file_type": "application/octet-stream",
+              "id": 4141619,
+              "name": "内存泄漏和覆盖率.7z",
+              "note": "",
+              "pojo_id": 1095242,
+              "status": "done",
+              "thumbUrl": "https://td.atrust.sangfor.com/public/defect/2026/01/16/内存泄漏和覆盖率-20260116-x4pirthaxfsnbyxn.7z",
+              "title": "",
+              "uid": "4141619",
+              "url": "https://td.atrust.sangfor.com/public/defect/2026/01/16/内存泄漏和覆盖率-20260116-x4pirthaxfsnbyxn.7z",
+              "valid": true
+            },
+            {
+              "belong_type": "defect",
+              "creator_username": "52012",
+              "extension": ".tgz",
+              "file_disgest": "9ac965ce1163ba9666e6ff081ce4c91b",
+              "file_name": "KB-WACAP-20260116-Wlan-2025111403-001.sign.tgz",
+              "file_path": "https://td.atrust.sangfor.com/public/defect/2026/01/16/KB-WACAP-20260116-Wlan-2025111403-001.sign-20260116-ugx0shr79ze3gide.tgz",
+              "file_type": "application/x-compressed",
+              "id": 4141659,
+              "name": "KB-WACAP-20260116-Wlan-2025111403-001.sign.tgz",
+              "note": "",
+              "pojo_id": 1095242,
+              "status": "done",
+              "thumbUrl": "https://td.atrust.sangfor.com/public/defect/2026/01/16/KB-WACAP-20260116-Wlan-2025111403-001.sign-20260116-ugx0shr79ze3gide.tgz",
+              "title": "",
+              "uid": "4141659",
+              "url": "https://td.atrust.sangfor.com/public/defect/2026/01/16/KB-WACAP-20260116-Wlan-2025111403-001.sign-20260116-ugx0shr79ze3gide.tgz",
+              "valid": true
+            }
+          ],
+          "case_analysis": {
+            "content": "无用例",
+            "desc": null,
+            "id": 10002
+          },
+          "case_analysis_type": "无用例",
+          "classification": null,
+          "clone_by": null,
+          "clone_to": [],
+          "closed_time": null,
+          "comment": "丛雨10394/<p>1</p><br/>张浩52012/<p style=\"white-space: pre;\">【客户环境(appversion/kbversion/hwinfo，如果远程不方便或无法远程，也可以在页面备份配置以及提供控制器升级历史记录截图)】<br/>新发货设备NAC316，无kb包。<br/>【问题现象】<br/>定制功能：客户对接自开发短信网关发送短信验证码。<br/>【问题原因】<br/>定制功能：客户对接自开发短信网关发送短信验证码。<br/>【解决方案】<br/>修改sms_sp，适配客户接口通过客户短信网关发送短信验证码。<br/>【修改方式（简单描述修改逻辑，patch上传到附件，切记不要将patch截图到TD）】<br/>修改sms_sp，适配客户接口通过客户短信网关发送短信验证码。<br/>【覆盖率内存泄漏是否通过（可上传附件）】<br/>通过，见附件<br/>【自测用例及测试结果（可上传附件）】<br/>1、大陆手机号验证通过。\n<img src=\"https://td.atrust.sangfor.com/public/defect/2026/01/16/image-20260116-pxg0oz9acg3tab6w.png\" style=\"max-width:100%;\" contenteditable=\"false\"/>\n2、台湾手机号未验证：客户短信平台发送台湾短信有问题需要修改，但sms_sp调用接口结果已显示发送到短信网关成功。\n【测试建议】<br/>配置方式：\n1、由于客户有大陆手机号、台湾手机号，所以勾选启用短信访客国家或地区码选项。\n2、网关类型选择：HTTP协议、url地址：<a href=\"http://qydx.53api.com/api/webservice\" target=\"_blank\">http://qydx.53api.com/api/webservice</a>、编码选择UTF-8，SOAP1.1，GET请求类型\n<img src=\"https://td.atrust.sangfor.com/public/defect/2026/01/16/image-20260116-0h64fkv3klaun2tu.png\" style=\"max-width:100%;\" contenteditable=\"false\"/>\n3、短信模板内容如下：cmd=$$DINGZHI_CMD$$&amp;eprId=$$DINGZHI_EPR_ID$$&amp;userId=$$DINGZHI_USER_ID$$×tamp=$$DINGZHI_TIMESTAMP$$&amp;key=$$DINGZHI_KEY$$&amp;msgId=$$DINGZHI_MSG_ID$$&amp;format=$$DINGZHI_FORMAT$$&amp;mobile=$$MOBILE_NUM$$&amp;content=$$SMS_CONTENT$$</p><p style=\"white-space: pre;\">【是否合入融合包及其它需求合入情况】<br/>否<br/>【客户历史KB包是否冲突（如果补丁包既要修改后台又要修改UI，后台与UI研发都需要做冲突分析）】<br/>否<br/>【客户配置（原则上都要找技服提供，上传附件或描述存放位置(企业微信群里面有也可以），如果拿不到配置备注原因】<br/>新发货设备无配置<br/>【是否改动UI static（若改动需提供源文件确认是否冲突）】<br/>否<br/>【编译服务器代码路径确认（低版本附svninfo.txt的结果，高版本附git status | grep 'On branch'的结果）】<br/></p><p style=\"white-space: pre;\">wns3.16.0_Wlan-2025111403</p><p style=\"white-space: pre;\">【后台改动前置脚本MD5判断（检测之前文件是否有被替换但未打补丁包留存记录）】<br/>-<br/>【归档路径（KB包、中间文件）】<br/></p><p style=\"white-space: pre;\">9ac965ce1163ba9666e6ff081ce4c91b KB-WACAP-20260116-Wlan-2025111403-001.sign.tgz</p><p style=\"white-space: pre;\">【git代码归档路径（附上本次改动的git归档路径，这项只有定制需求TD才需要填写，网上问题TD直接填写无）】<br/><a href=\"https://code.sundray.com.cn/wac/source/commits/wns3.16.0_Wlan-2025111403\" target=\"_blank\">https://code.sundray.com.cn/wac/source/commits/wns3.16.0_Wlan-2025111403</a><br/>【收包人】\n谭俊杰</p><br/>丛雨10394/<p style=\"white-space: pre;\">【代码审查/用例是否通过】<br/>1<br/>【KB包/UI冲突是否冲突】</p><p>1</p><br/>丛雨10394/<p>1</p>",
+          "create_at": "2025-12-16T19:00:18.000+0800",
+          "creator": {
+            "display_name": "李进53281",
+            "email": "53281@sangfor.com",
+            "id": 12750,
+            "username": "53281"
+          },
+          "custom_field_10002": {
+            "field_name": "漏测类型",
+            "id": 10931,
+            "name": "非漏测",
+            "value": "非漏测"
+          },
+          "custom_field_10011": {
+            "field_name": "是否要回归确认",
+            "id": 10062,
+            "name": "是",
+            "value": "是"
+          },
+          "defect_category": {
+            "content": "需求问题-版本范围外",
+            "desc": 10003,
+            "id": 10003
+          },
+          "defect_type": {
+            "id": "defect_type1",
+            "key": "defect_type1",
+            "name": "功能"
+          },
+          "desc": "【问题描述】</br>定制短信认证平台对接，同时支持认证页面识别台湾手机号10位数号码 </br></br>【客户及产品信息】</br>&nbsp&nbsp&nbsp&nbsp客户名称：玉山银行（中国）有限公司 </br>&nbsp&nbsp&nbsp&nbsp客户类型：普通客户、小项目 </br>&nbsp&nbsp&nbsp&nbsp产品线：Wlan </br>&nbsp&nbsp&nbsp&nbsp区域：深圳办企业组 </br>&nbsp&nbsp&nbsp&nbsp销售：周凯辉 </br>&nbsp&nbsp&nbsp&nbsp定制类型: 页面定制/第三方认证 </br>&nbsp&nbsp&nbsp&nbsp定制版本：3.15 </br>&nbsp&nbsp&nbsp&nbsp预签金额：5 </br></br>【进展】</br>定制单链接: https://bpmmarket.atrus</br>t.sangfor.com/Forms/RJDZSR/RJDZSR/View?ProcInstId=28868FDCB840DFB6",
+          "discover_stage": {
+            "id": 47698,
+            "key": "stage_47698",
+            "name": "需求",
+            "sid": null
+          },
+          "discover_time": null,
+          "discoverer": null,
+          "discoverer_role": {
+            "id": 10002,
+            "key": "developer",
+            "name": "开发人员"
+          },
+          "discovery_way": {
+            "content": "外部转入-其他",
+            "desc": null,
+            "id": 10014
+          },
+          "end_at": null,
+          "fix_date": "2026-01-16T17:14:30.000+0800",
+          "fix_person": {
+            "display_name": "张浩52012",
+            "id": 18337,
+            "username": "52012"
+          },
+          "forecast_effort": null,
+          "func_module": {
+            "id": 207058,
+            "linkage_ids": [
+              207058
+            ],
+            "mid": "223288",
+            "name": "NMC定制包"
+          },
+          "generate_reason": null,
+          "generate_stage": null,
+          "handlers": [
+            "张浩52012",
+            "丛雨10394"
+          ],
+          "icare_defect_id": "",
+          "icare_defect_no": null,
+          "icare_tl_team": null,
+          "icare_version": null,
+          "id": 1095242,
+          "introduction_stage": null,
+          "ipd_project": null,
+          "is_cross_product": false,
+          "is_end": false,
+          "is_mechanism": null,
+          "is_reappear": {
+            "id": "1",
+            "key": "1",
+            "name": "是",
+            "value": "1"
+          },
+          "key": 2025121600394,
+          "label": [],
+          "modify_review_time": "2026-01-16T17:20:33.000+0800",
+          "modify_reviewer": {
+            "display_name": "丛雨10394",
+            "id": 10375,
+            "username": "10394"
+          },
+          "origin_product": null,
+          "perform_analysis": null,
+          "priority": null,
+          "product": {
+            "id": 10083,
+            "key": "product_10083",
+            "name": "TS",
+            "p_type": "product",
+            "pid": "2592"
+          },
+          "project_discovery_stage": {
+            "content": "需求（TR1-TR2）",
+            "id": 2
+          },
+          "regression_date": null,
+          "regression_person": null,
+          "reopen_count": 0,
+          "responsible_person": {
+            "display_name": "张浩52012",
+            "id": 18337,
+            "username": "52012"
+          },
+          "seriousness": null,
+          "severity": {
+            "id": "severity4",
+            "key": "severity4",
+            "name": "P4"
+          },
+          "source": null,
+          "sprint_matter": null,
+          "start_at": null,
+          "status": {
+            "color": "#ff5b00",
+            "id": 10006,
+            "name": "缺陷回归"
+          },
+          "status_tag": {
+            "color": "#ff5b00",
+            "desc": "",
+            "id": 10007,
+            "is_final": false,
+            "key": 10007,
+            "name": "回归中"
+          },
+          "summary": "Wlan-2025111403_玉山银行（中国）有限公司",
+          "td_v2_version": {
+            "id": 1680,
+            "name": "网上问题",
+            "p_v2_version_id": 3315,
+            "version_status": "UNDER_DEVELOPMENT"
+          },
+          "test_coverage": "否",
+          "test_features": {
+            "id": 25435,
+            "linkage_ids": [
+              25435
+            ],
+            "name": "业务特性",
+            "tid": "30187"
+          },
+          "tp_case": null,
+          "transfer_defect_type": "defect",
+          "update_at": "2026-01-16T17:22:01.000+0800",
+          "updator": {
+            "display_name": "丛雨10394",
+            "id": 10375,
+            "username": "10394"
+          },
+          "valid": true,
+          "version": {
+            "dev_mode": 1,
+            "id": 15818,
+            "key": "version_15818",
+            "name": "SUNDRAY-TS",
+            "vid": "7100"
+          },
+          "workflow": {
+            "id": 10174,
+            "key": "workflow_10174",
+            "name": "标准流程"
+          }
+        },
+        "id": "1095242",
+        "key": "2025121600394"
+      }
+    ],
+    "total": 1
+  },
+  "msg": "操作成功",
+  "success": true
+}
