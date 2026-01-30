@@ -75,11 +75,14 @@ class HTTPHelper:
         for retry in range(max_retries):
             try:
                 logger.info(f"发送{method}请求到: {url}")
-                logger.info(f"请求头: {headers}")
+                if headers:
+                    # 只记录关键请求头，避免记录完整请求头
+                    logger.debug(f"请求头: {headers}")
                 if data:
-                    logger.info(f"请求数据: {data}")
+                    # 只记录数据存在性，避免记录完整数据
+                    logger.debug(f"请求数据: 存在")
                 if params:
-                    logger.info(f"请求参数: {params}")
+                    logger.debug(f"请求参数: {params}")
                 
                 if method == 'GET':
                     resp = session.get(url, headers=headers, params=params, timeout=30)
@@ -90,7 +93,9 @@ class HTTPHelper:
                     return None
                 
                 logger.info(f"响应状态码: {resp.status_code}")
-                logger.info(f"响应内容: {resp.text}")
+                if resp.status_code != 200:
+                    # 只在响应失败时记录响应内容
+                    logger.debug(f"响应内容: {resp.text}")
                 
                 if resp.status_code == 200:
                     try:
@@ -132,62 +137,62 @@ class VMManagementWorkflow:
         try:
             with open(self.config_file, 'r', encoding='utf-8') as f:
                 self.config = json.load(f)
-            logger.info(f"✓ 配置文件加载成功: {self.config_file}")
+            logger.info(f"成功: 配置文件加载成功: {self.config_file}")
             return True
         except Exception as e:
-            logger.error(f"✗ 加载配置文件失败: {e}")
+            logger.error(f"错误: 加载配置文件失败: {e}")
             return False
     
     def validate_config(self):
         """验证配置完整性"""
         if not self.config:
-            logger.error("✗ 配置未加载")
+            logger.error("错误: 配置未加载")
             return False
         
         # 验证HCI设备配置
         hci_device = self.config.get('hci_device', {})
         if not all([hci_device.get('ip'), hci_device.get('username'), hci_device.get('password')]):
-            logger.error("✗ HCI设备登录信息不完整")
+            logger.error("错误: HCI设备登录信息不完整")
             return False
         
         # 验证目标虚拟机配置
         target_vm = self.config.get('target_vm', {})
         if not all([target_vm.get('name'), target_vm.get('snapshot')]):
-            logger.error("✗ 目标虚拟机信息不完整")
+            logger.error("错误: 目标虚拟机信息不完整")
             return False
         
         # 验证网络配置
         network_config = self.config.get('network_config', {})
         if not all([network_config.get('ip_address'), network_config.get('default_gateway')]):
-            logger.error("✗ 网络配置不完整")
+            logger.error("错误: 网络配置不完整")
             return False
         
         # 验证KB包配置
         kb_packages = self.config.get('kb_packages', {})
         if not kb_packages.get('current'):
-            logger.error("✗ 本次KB包信息未配置")
+            logger.error("错误: 本次KB包信息未配置")
             return False
         
         # 验证客户配置
         customer_config = self.config.get('customer_config')
         if not customer_config:
-            logger.error("✗ 客户配置信息未配置")
+            logger.error("错误: 客户配置信息未配置")
             return False
         
         # 验证登录凭证
         login_credentials = self.config.get('login_credentials', {})
         if not all([login_credentials.get('username'), login_credentials.get('password')]):
-            logger.error("✗ 登录凭证信息不完整")
+            logger.error("错误: 登录凭证信息不完整")
             return False
         
-        logger.info("✓ 配置验证通过")
+        logger.info("成功: 配置验证通过")
         return True
     
     def select_config(self):
         """根据关键词选择配置"""
         # 由于新的配置文件只包含一个目标虚拟机，直接使用配置
         self.selected_config = self.config
-        logger.info("✓ 使用配置文件中的目标虚拟机")
+        logger.info("成功: 使用配置文件中的目标虚拟机")
         return True
     
     def get_hci_credentials(self):
@@ -213,7 +218,7 @@ class VMManagementWorkflow:
                 resp = page.request.get(public_key_url, timeout=30000)
                 
                 if resp.status != 200:
-                    logger.error(f"✗ 获取公钥失败，状态码: {resp.status}")
+                    logger.error(f"错误: 获取公钥失败，状态码: {resp.status}")
                     browser.close()
                     return False
                 
@@ -221,18 +226,18 @@ class VMManagementWorkflow:
                 public_key = public_key_data.get('data')
                 
                 if not public_key:
-                    logger.error("✗ 响应中没有找到公钥")
+                    logger.error("错误: 响应中没有找到公钥")
                     browser.close()
                     return False
                 
-                logger.info("✓ 已获取公钥")
+                logger.info("成功: 已获取公钥")
                 
                 # RSA加密密码
                 logger.info("正在加密密码...")
                 key = rsa.PublicKey(int(public_key, 16), int("10001", 16))
                 password_temp = rsa.encrypt(bytes(password, encoding="utf-8"), key)
                 password_rsa = str(binascii.b2a_hex(password_temp), encoding="utf-8")
-                logger.info("✓ 密码加密完成")
+                logger.info("成功: 密码加密完成")
                 
                 # 发送登录请求
                 logger.info("正在登录...")
@@ -253,7 +258,7 @@ class VMManagementWorkflow:
                 )
                 
                 if resp.status != 200:
-                    logger.error(f"✗ 登录失败，状态码: {resp.status}")
+                    logger.error(f"错误: 登录失败，状态码: {resp.status}")
                     browser.close()
                     return False
                 
@@ -262,7 +267,7 @@ class VMManagementWorkflow:
                 ticket = login_data.get("data", {}).get("ticket")
                 
                 if not csrf_token or not ticket:
-                    logger.error("✗ 响应中没有找到CSRFPreventionToken或ticket")
+                    logger.error("错误: 响应中没有找到CSRFPreventionToken或ticket")
                     browser.close()
                     return False
                 
@@ -276,11 +281,11 @@ class VMManagementWorkflow:
                 }
                 
                 browser.close()
-                logger.info("✓ 成功获取HCI登录凭证")
+                logger.info("成功: 成功获取HCI登录凭证")
                 return True
                 
         except Exception as e:
-            logger.error(f"✗ 获取HCI登录凭证失败: {e}")
+            logger.error(f"错误: 获取HCI登录凭证失败: {e}")
             traceback.print_exc()
             return False
     
@@ -293,15 +298,15 @@ class VMManagementWorkflow:
     def get_vm_id(self, vm_name):
         """根据虚拟机名称获取虚拟机ID"""
         if not self.hci_credentials:
-                logger.error("✗ HCI登录凭证未获取")
-                return None
+            logger.error("✗ HCI登录凭证未获取")
+            return None
+        
+        try:
+            ip = self.hci_credentials.get('ip')
+            csrf_token = self.hci_credentials.get('csrf_token')
+            cookie = self.hci_credentials.get('cookie')
             
-            try:
-                ip = self.hci_credentials.get('ip')
-                csrf_token = self.hci_credentials.get('csrf_token')
-                cookie = self.hci_credentials.get('cookie')
-                
-                logger.info(f"正在查找虚拟机 {vm_name}...")
+            logger.info(f"正在查找虚拟机 {vm_name}...")
             
             # 尝试使用curl命令获取虚拟机列表
             import subprocess
@@ -1084,7 +1089,7 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
                         logger.info(f"✓ [{access_time}] 模板匹配检测到重启完成标志，连续成功次数: {success_count}/{required_successes}")
                     else:
                         success_count = 0
-                        logger.info(f"✗ [{access_time}] 模板匹配未检测到重启完成标志，第 {attempt+1}/{max_attempts} 次尝试")
+                        logger.warning(f"✗ [{access_time}] 模板匹配未检测到重启完成标志，第 {attempt+1}/{max_attempts} 次尝试")
                     
                     # 如果连续3次成功，关闭浏览器并返回True
                     if success_count >= required_successes:
@@ -1247,7 +1252,7 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
                     for char in login_username:
                         update_page.keyboard.type(char)
                         update_page.wait_for_timeout(50)
-                    logger.info(f'账号已输入: {login_username}')
+                    logger.info('账号已输入')
                     
                     update_page.wait_for_selector('#login_password', state='visible', timeout=10000)
                     login_password_loc = update_page.locator('#login_password')
@@ -1432,17 +1437,17 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
                         login_username=self.config.get('login_credentials', {}).get('username'),
                         login_password=self.config.get('login_credentials', {}).get('password')
                     )
-                logger.info("✓ 客户配置恢复完成")
+                logger.info("成功: 客户配置恢复完成")
             else:
-                logger.error("✗ 客户配置文件路径未配置")
+                logger.error("错误: 客户配置文件路径未配置")
                 return False
             
             # 16. 检查虚拟机是否重启完毕
             logger.info("正在检测虚拟机重启状态...")
             if not self.check_vm_reboot_completed(vm_name, network_config, vmid):
-                logger.error("✗ 虚拟机重启检测失败")
+                logger.error("错误: 虚拟机重启检测失败")
                 return False
-            logger.info("✓ 虚拟机重启检测完成")
+            logger.info("成功: 虚拟机重启检测完成")
 
              # 13. 修改虚拟机IP地址（独立创建浏览器）
             if not self.modify_vm_ip(vm_name, network_config):
@@ -1459,14 +1464,14 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
             return True
             
         except Exception as e:
-            logger.error(f"✗ 工作流执行失败: {e}")
+            logger.error(f"错误: 工作流执行失败: {e}")
             traceback.print_exc()
             return False
         
     def get_vm_snapshots(self, vmid):
         """获取虚拟机快照列表"""
         if not self.hci_credentials:
-            logger.error("✗ HCI登录凭证未获取")
+            logger.error("错误: HCI登录凭证未获取")
             return None
         
         try:
@@ -1491,34 +1496,34 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
                         snapshots = response_data.get("data", [])
                         
                         if snapshots:
-                            logger.info(f"✓ 获取到 {len(snapshots)} 个快照")
+                            logger.info(f"成功: 获取到 {len(snapshots)} 个快照")
                             for snapshot in snapshots:
                                 logger.info(f"  - {snapshot.get('name')} (ID: {snapshot.get('snapid')})")
                             return snapshots
                         else:
-                            logger.error(f"✗ 虚拟机 {vmid} 没有任何快照")
+                            logger.error(f"错误: 虚拟机 {vmid} 没有任何快照")
                     else:
-                        logger.error(f"✗ 获取快照列表失败: success不为1")
+                        logger.error(f"错误: 获取快照列表失败: success不为1")
                         logger.error(f"响应: {result.stdout[:200]}")
                 except json.JSONDecodeError as e:
-                    logger.error(f"✗ 解析响应JSON失败: {e}")
+                    logger.error(f"错误: 解析响应JSON失败: {e}")
                     logger.error(f"响应内容: {result.stdout[:200]}")
             else:
-                logger.error(f"✗ 获取快照列表失败: 响应为空")
+                logger.error(f"错误: 获取快照列表失败: 响应为空")
                 if result.stderr:
                     logger.error(f"错误信息: {result.stderr}")
             
             return None
             
         except Exception as e:
-            logger.error(f"✗ 获取快照列表失败: {e}")
+            logger.error(f"错误: 获取快照列表失败: {e}")
             traceback.print_exc()
             return None
         
     def get_vm_id(self, vm_name):
         """根据虚拟机名称获取虚拟机ID"""
         if not self.hci_credentials:
-            logger.error("✗ HCI登录凭证未获取")
+            logger.error("错误: HCI登录凭证未获取")
             return None
         
         try:
@@ -1551,7 +1556,7 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
                             for vm in vms:
                                 if vm.get("name") == vm_name:
                                     vmid = vm.get("vmid")
-                                    logger.info(f"✓ 找到虚拟机: {vm_name}, ID: {vmid}")
+                                    logger.info(f"成功: 找到虚拟机: {vm_name}, ID: {vmid}")
                                     return vmid
                         
                         # 打印所有虚拟机名称，帮助调试
@@ -1561,21 +1566,21 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
                             for vm in vms:
                                 logger.info(f"  - {vm.get('name')}")
                     else:
-                        logger.error(f"✗ 获取虚拟机列表失败: success不为1")
+                        logger.error(f"错误: 获取虚拟机列表失败: success不为1")
                         logger.error(f"响应: {result.stdout[:200]}")
                 except json.JSONDecodeError as e:
-                    logger.error(f"✗ 解析响应JSON失败: {e}")
+                    logger.error(f"错误: 解析响应JSON失败: {e}")
                     logger.error(f"响应内容: {result.stdout[:200]}")
             else:
-                logger.error(f"✗ 获取虚拟机列表失败: 响应为空")
+                logger.error(f"错误: 获取虚拟机列表失败: 响应为空")
                 if result.stderr:
                     logger.error(f"错误信息: {result.stderr}")
             
-            logger.error(f"✗ 未找到虚拟机: {vm_name}")
+            logger.error(f"错误: 未找到虚拟机: {vm_name}")
             return None
             
         except Exception as e:
-            logger.error(f"✗ 获取虚拟机ID失败: {e}")
+            logger.error(f"错误: 获取虚拟机ID失败: {e}")
             traceback.print_exc()
             return None
         
