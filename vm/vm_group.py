@@ -133,7 +133,7 @@ class VMGroupManager:
             print(f"正在获取虚拟机组列表...")
             
             # 构建curl命令
-            curl_command = f"curl -k \"https://{ip}/vapi/extjs/cluster/vms?group_type=group&sort_type=&desc=1&scene=resources_used\" -H \"Accept: */*\" -H \"Accept-Language: zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6\" -H \"CSRFPreventionToken: {csrf_token}\" -H \"Connection: keep-alive\" -H \"Cookie: {cookie}\" -H \"Referer: https://{ip}/\" -H \"Sec-Fetch-Dest: empty\" -H \"Sec-Fetch-Mode: cors\" -H \"Sec-Fetch-Site: same-origin\" -H \"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\" -H \"X-Requested-With: XMLHttpRequest\""
+            curl_command = f"curl -k -s \"https://{ip}/vapi/extjs/cluster/vms?group_type=group&sort_type=&desc=1&scene=resources_used\" -H \"Accept: */*\" -H \"Accept-Language: zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6\" -H \"CSRFPreventionToken: {csrf_token}\" -H \"Connection: keep-alive\" -H \"Cookie: {cookie}\" -H \"Referer: https://{ip}/\" -H \"Sec-Fetch-Dest: empty\" -H \"Sec-Fetch-Mode: cors\" -H \"Sec-Fetch-Site: same-origin\" -H \"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\" -H \"X-Requested-With: XMLHttpRequest\""
             
             # 执行curl命令
             print(f"执行命令: {curl_command[:100]}...")

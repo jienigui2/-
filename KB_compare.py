@@ -2,16 +2,17 @@ import requests
 import json
 import os
 import time
+import configparser
 
 
 def load_config():
     """
-    从配置文件加载KB登录凭证
+    从all.ini加载KB登录凭证
     
     Returns:
         dict: 包含username和password的配置，失败时返回None
     """
-    config_file = "KB_login.json"
+    config_file = "all.ini"
     
     # 检查配置文件是否存在
     if not os.path.exists(config_file):
@@ -19,23 +20,26 @@ def load_config():
         return None
     
     try:
-        with open(config_file, 'r', encoding='utf-8') as f:
-            config = json.load(f)
-            
+        config_parser = configparser.ConfigParser()
+        config_parser.read(config_file, encoding='utf-8')
+        
         # 验证配置文件结构
-        kb_credentials = config.get('kb_credentials', {})
-        username = kb_credentials.get('username')
-        password = kb_credentials.get('password')
+        if 'kb_compare' not in config_parser:
+            print("✗ 配置文件中缺少kb_compare部分")
+            return None
+        
+        username = config_parser.get('kb_compare', 'kb_username', fallback='')
+        password = config_parser.get('kb_compare', 'kb_password', fallback='')
         
         if not all([username, password]):
-            print("✗ 配置文件中缺少username或password")
+            print("✗ 配置文件中缺少kb_username或kb_password")
             return None
             
-        return kb_credentials
+        return {
+            'username': username,
+            'password': password
+        }
         
-    except json.JSONDecodeError as e:
-        print(f"✗ 解析配置文件JSON失败: {e}")
-        return None
     except Exception as e:
         print(f"✗ 读取配置文件失败: {e}")
         return None
@@ -161,12 +165,12 @@ def load_token():
 
 def load_compare_config():
     """
-    从KB_login.json加载KB包对比配置
+    从all.ini加载KB包对比配置
     
     Returns:
         dict: 包含history_packages和pending_packages的配置，失败时返回None
     """
-    config_file = "KB_login.json"
+    config_file = "all.ini"
     
     # 检查配置文件是否存在
     if not os.path.exists(config_file):
@@ -174,16 +178,34 @@ def load_compare_config():
         return None
     
     try:
-        with open(config_file, 'r', encoding='utf-8') as f:
-            config = json.load(f)
-            
-        # 验证配置文件结构
-        kb_compare = config.get('kb_compare', {})
-        history_packages = kb_compare.get('history_packages')
-        pending_packages = kb_compare.get('pending_packages')
+        config_parser = configparser.ConfigParser()
+        config_parser.read(config_file, encoding='utf-8')
         
-        if history_packages is None or pending_packages is None:
-            print("✗ 配置文件中缺少history_packages或pending_packages")
+        # 验证配置文件结构
+        if 'kb_compare' not in config_parser:
+            print("✗ 配置文件中缺少kb_compare部分")
+            return None
+        
+        # 读取并解析历史包列表（支持逗号分隔的多个包）
+        history_packages_str = config_parser.get('kb_compare', 'history_packages', fallback='')
+        history_packages = []
+        if history_packages_str:
+            for package in history_packages_str.split(','):
+                package = package.strip()
+                if package:
+                    history_packages.append({"name": package})
+        
+        # 读取并解析待对比包列表（支持逗号分隔的多个包）
+        pending_packages_str = config_parser.get('kb_compare', 'pending_packages', fallback='')
+        pending_packages = []
+        if pending_packages_str:
+            for package in pending_packages_str.split(','):
+                package = package.strip()
+                if package:
+                    pending_packages.append({"name": package})
+        
+        if not history_packages or not pending_packages:
+            print("✗ 配置文件中缺少有效的history_packages或pending_packages")
             return None
             
         return {
@@ -191,9 +213,6 @@ def load_compare_config():
             "pending_packages": pending_packages
         }
         
-    except json.JSONDecodeError as e:
-        print(f"✗ 解析配置文件JSON失败: {e}")
-        return None
     except Exception as e:
         print(f"✗ 读取配置文件失败: {e}")
         return None

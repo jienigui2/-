@@ -1,0 +1,49 @@
+{
+  "kb_config": {
+    "kb_number": "KB-WACAP-20260116-Wlan-2025111403",
+    "target_id": "001"
+  },
+  "prepare": {
+    "status": "completed",
+    "config_loaded": true,
+    "timestamp": 1770086004.1432407
+  },
+  "download_kb": {
+    "status": "completed",
+    "kb_sign_file": "F:\\KB\\KB-WACAP-20260116-Wlan-2025111403\\KB-WACAP-20260116-Wlan-2025111403-001.sign.tgz",
+    "kb_file_path": "F:\\KB\\KB-WACAP-20260116-Wlan-2025111403\\KB-WACAP-20260116-Wlan-2025111403-001.tgz",
+    "kb_file_name": "KB-WACAP-20260116-Wlan-2025111403-001.tgz",
+    "timestamp": 1770089986.665798
+  },
+  "kb_conflict": {
+    "status": "completed",
+    "timestamp": 1770101893.074053
+  },
+  "recover_snapshot": {
+    "status": "completed",
+    "vmid": 7908819340268,
+    "snapshot_id": "a61c26906-7082-4d47-967e-16f093f36910a",
+    "timestamp": 1770102364.6974983
+  },
+  "modify_ip": {
+    "status": "completed",
+    "ip_address": "10.156.2.112/15",
+    "timestamp": 1770090833.3468895
+  },
+  "recover_customer_config": {
+    "status": "completed",
+    "timestamp": 1770102239.2450666
+  },
+  "check_reboot": {
+    "status": "completed",
+    "timestamp": 1770102773.065885
+  },
+  "upgrade_kb": {
+    "status": "idle",
+    "timestamp": null
+  },
+  "kb_scan": {
+    "status": "completed",
+    "timestamp": 1770100591.0149415
+  }
+}

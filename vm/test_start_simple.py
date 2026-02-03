@@ -51,7 +51,8 @@ curl ^"https://{ip}/vapi/extjs/cluster/vm/{vmid}/status/start^" ^
 -X ^"POST^" ^
 -H ^"CSRFPreventionToken: {csrf_token}^" ^
 -H ^"Cookie: {cookie}^" ^
---insecure
+--insecure ^
+-s
 """
         
         import subprocess

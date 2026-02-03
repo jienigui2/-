@@ -34,6 +34,20 @@
         ]
       },
       {
+        "author": "",
+        "backend_count": 0,
+        "description": "信息获取失败, 请检查以下几个地方是否正确 1. kb包名字是否正确(不含后缀): KB-NACAP-20250716-zhaohang-daping-wns3.15.0-CAyyy-002 2. 检查上述kb包名解析是否正确, 若不正确,-> 使用[kb-project-name|kb-packet-name]-> 其中, $kb-project-name 为KB项目名称-> $kb-packet-name 为KB包名；例如[KB-WACAP-20211013-Wlan-2021091402|001] 3. 当前KB包索引损坏(无法找到) -> 找进哥确认",
+        "id": "",
+        "js_count": 0,
+        "kbname": "KB-NACAP-20250716-zhaohang-daping-wns3.15.0-CAyyy-002",
+        "need_repack_ssu": "",
+        "parent": "",
+        "parent_des": "",
+        "php_count": 0,
+        "updatetime": "信息获取失败, 请检查以下几个地方是否正确 1. kb包名字是否正确(不含后缀): KB-NACAP-20250716-zhaohang-daping-wns3.15.0-CAyyy-002 2. 检查上述kb包名解析是否正确, 若不正确,-> 使用[kb-project-name|kb-packet-name]-> 其中, $kb-project-name 为KB项目名称-> $kb-packet-name 为KB包名；例如[KB-WACAP-20211013-Wlan-2021091402|001] 3. 当前KB包索引损坏(无法找到) -> 找进哥确认",
+        "version": []
+      },
+      {
         "author": "zrh",
         "backend_count": 2,
         "description": "",
@@ -51,6 +65,20 @@
           "NMC3.15.0",
           "vNMC3.15.0"
         ]
+      },
+      {
+        "author": "",
+        "backend_count": 0,
+        "description": "信息获取失败, 请检查以下几个地方是否正确 1. kb包名字是否正确(不含后缀): KB-NACAP-Wlan-2025101502-001 2. 检查上述kb包名解析是否正确, 若不正确,-> 使用[kb-project-name|kb-packet-name]-> 其中, $kb-project-name 为KB项目名称-> $kb-packet-name 为KB包名；例如[KB-WACAP-20211013-Wlan-2021091402|001] 3. 当前KB包索引损坏(无法找到) -> 找进哥确认",
+        "id": "",
+        "js_count": 0,
+        "kbname": "KB-NACAP-Wlan-2025101502-001",
+        "need_repack_ssu": "",
+        "parent": "",
+        "parent_des": "",
+        "php_count": 0,
+        "updatetime": "信息获取失败, 请检查以下几个地方是否正确 1. kb包名字是否正确(不含后缀): KB-NACAP-Wlan-2025101502-001 2. 检查上述kb包名解析是否正确, 若不正确,-> 使用[kb-project-name|kb-packet-name]-> 其中, $kb-project-name 为KB项目名称-> $kb-packet-name 为KB包名；例如[KB-WACAP-20211013-Wlan-2021091402|001] 3. 当前KB包索引损坏(无法找到) -> 找进哥确认",
+        "version": []
       }
     ]
   },

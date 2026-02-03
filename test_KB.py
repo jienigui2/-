@@ -3,10 +3,50 @@ import json
 from playwright.async_api import async_playwright
 import logging
 import os
+import configparser
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+def load_test_config():
+    """
+    从all.ini加载KB测试配置
+    
+    Returns:
+        dict: 包含kb_number和target_id的配置，失败时返回None
+    """
+    config_file = "all.ini"
+    
+    # 检查配置文件是否存在
+    if not os.path.exists(config_file):
+        logger.error(f"配置文件 {config_file} 不存在")
+        return None
+    
+    try:
+        config_parser = configparser.ConfigParser()
+        config_parser.read(config_file, encoding='utf-8')
+        
+        # 验证配置文件结构
+        if 'kb_test' not in config_parser:
+            logger.error("配置文件中缺少kb_test部分")
+            return None
+        
+        kb_number = config_parser.get('kb_test', 'kb_number', fallback='')
+        target_id = config_parser.get('kb_test', 'target_id', fallback='')
+        
+        if not all([kb_number, target_id]):
+            logger.error("配置文件中缺少kb_number或target_id")
+            return None
+            
+        return {
+            'kb_number': kb_number,
+            'target_id': target_id
+        }
+        
+    except Exception as e:
+        logger.error(f"读取配置文件失败: {e}")
+        return None
 
 async def find_and_click_targets(page, download_path, target_number, target_id):
     """
@@ -165,9 +205,11 @@ async def main():
     """
     主函数
     """
-    # 从KB_test.json读取配置
-    with open('KB_test.json', 'r', encoding='utf-8') as f:
-        kb_config = json.load(f)
+    # 从all.ini读取配置
+    kb_config = load_test_config()
+    if not kb_config:
+        logger.error("无法加载配置，退出程序")
+        return
     
     kb_number = kb_config.get('kb_number')
     target_id = kb_config.get('target_id')

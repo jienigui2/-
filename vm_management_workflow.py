@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+虚拟机管理工作流脚本
+"""
+
 import os
 import sys
 import json
@@ -15,6 +21,190 @@ import numpy as np
 from PIL import Image
 from io import BytesIO
 import logging
+import configparser
+
+# 模块状态文件路径
+MODULE_STATE_FILE = "module_state.json"
+
+# 加载模块状态
+def load_module_state():
+    """
+    加载模块状态文件
+    
+    Returns:
+        dict: 模块状态字典
+    """
+    # 加载当前KB配置
+    current_kb_config = load_kb_test_config()
+    current_kb_number = current_kb_config.get('kb_number') if current_kb_config else None
+    current_target_id = current_kb_config.get('target_id') if current_kb_config else None
+    
+    if not os.path.exists(MODULE_STATE_FILE):
+        return {
+            "kb_config": {
+                "kb_number": current_kb_number,
+                "target_id": current_target_id
+            },
+            "prepare": {
+                "status": "idle",
+                "config_loaded": False,
+                "timestamp": None
+            },
+            "download_kb": {
+                "status": "idle",
+                "kb_sign_file": None,
+                "kb_file_path": None,
+                "kb_file_name": None,
+                "timestamp": None
+            },
+            "kb_conflict": {
+                "status": "idle",
+                "timestamp": None
+            },
+            "recover_snapshot": {
+                "status": "idle",
+                "vmid": None,
+                "snapshot_id": None,
+                "timestamp": None
+            },
+            "modify_ip": {
+                "status": "idle",
+                "ip_address": None,
+                "timestamp": None
+            },
+            "recover_customer_config": {
+                "status": "idle",
+                "timestamp": None
+            },
+            "check_reboot": {
+                "status": "idle",
+                "timestamp": None
+            },
+            "upgrade_kb": {
+                "status": "idle",
+                "timestamp": None
+            },
+            "kb_scan": {
+                "status": "idle",
+                "timestamp": None
+            }
+        }
+    
+    try:
+        with open(MODULE_STATE_FILE, 'r', encoding='utf-8') as f:
+            state = json.load(f)
+        
+        # 检查KB配置是否发生变化
+        stored_kb_number = state.get('kb_config', {}).get('kb_number')
+        stored_target_id = state.get('kb_config', {}).get('target_id')
+        
+        # 如果KB配置发生变化，清除相关状态
+        if stored_kb_number != current_kb_number or stored_target_id != current_target_id:
+            logger.info("检测到KB配置发生变化，清除相关状态")
+            # 更新KB配置
+            state['kb_config'] = {
+                "kb_number": current_kb_number,
+                "target_id": current_target_id
+            }
+            # 清除下载KB包相关状态
+            state['download_kb'] = {
+                "status": "idle",
+                "kb_sign_file": None,
+                "kb_file_path": None,
+                "kb_file_name": None,
+                "timestamp": None
+            }
+            # 清除升级KB包相关状态
+            state['upgrade_kb'] = {
+                "status": "idle",
+                "timestamp": None
+            }
+            # 清除KB扫描相关状态
+            state['kb_scan'] = {
+                "status": "idle",
+                "timestamp": None
+            }
+            # 保存更新后的状态
+            save_module_state(state)
+        
+        return state
+    except Exception as e:
+        logger.error(f"错误: 加载模块状态文件失败: {e}")
+        return {
+            "kb_config": {
+                "kb_number": current_kb_number,
+                "target_id": current_target_id
+            },
+            "prepare": {
+                "status": "idle",
+                "config_loaded": False,
+                "timestamp": None
+            },
+            "download_kb": {
+                "status": "idle",
+                "kb_sign_file": None,
+                "kb_file_path": None,
+                "kb_file_name": None,
+                "timestamp": None
+            },
+            "kb_conflict": {
+                "status": "idle",
+                "timestamp": None
+            },
+            "recover_snapshot": {
+                "status": "idle",
+                "vmid": None,
+                "snapshot_id": None,
+                "timestamp": None
+            },
+            "modify_ip": {
+                "status": "idle",
+                "ip_address": None,
+                "timestamp": None
+            },
+            "recover_customer_config": {
+                "status": "idle",
+                "timestamp": None
+            },
+            "check_reboot": {
+                "status": "idle",
+                "timestamp": None
+            },
+            "upgrade_kb": {
+                "status": "idle",
+                "timestamp": None
+            },
+            "kb_scan": {
+                "status": "idle",
+                "timestamp": None
+            }
+        }
+
+# 保存模块状态
+def save_module_state(state):
+    """
+    保存模块状态到文件
+    
+    Args:
+        state: 模块状态字典
+    """
+    try:
+        with open(MODULE_STATE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(state, f, indent=2, ensure_ascii=False)
+        logger.info(f"成功: 模块状态已保存到 {MODULE_STATE_FILE}")
+    except Exception as e:
+        logger.error(f"错误: 保存模块状态文件失败: {e}")
+
+# 确保标准输出编码正确
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+elif hasattr(sys, 'stdout'):
+    # 旧版Python的处理方式
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
+# 确保文件系统编码正确
+os.environ['PYTHONIOENCODING'] = 'utf-8'
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -22,6 +212,112 @@ logger = logging.getLogger(__name__)
 
 # 导入peizhi.py中的功能
 import peizhi
+
+def load_ini_config():
+    """
+    从all.ini加载虚拟机管理配置
+    
+    Returns:
+        dict: 配置信息，失败时返回None
+    """
+    config_file = "all.ini"
+    
+    # 检查配置文件是否存在
+    if not os.path.exists(config_file):
+        logger.error(f"配置文件 {config_file} 不存在")
+        return None
+    
+    try:
+        config_parser = configparser.ConfigParser()
+        config_parser.read(config_file, encoding='utf-8')
+        
+        # 验证配置文件结构
+        if 'vm_management' not in config_parser:
+            logger.error("配置文件中缺少vm_management部分")
+            return None
+        
+        # 构建配置字典
+        config = {
+            "target_vm": {
+                "name": config_parser.get('vm_management', 'target_vm_name', fallback=''),
+                "snapshot": config_parser.get('vm_management', 'target_vm_snapshot', fallback='')
+            },
+            "network_config": {
+                "ip_address": config_parser.get('vm_management', 'ip_address', fallback=''),
+                "default_gateway": config_parser.get('vm_management', 'default_gateway', fallback='')
+            },
+            "customer_config": config_parser.get('vm_management', 'customer_config', fallback=''),
+            "login_credentials": {
+                "username": config_parser.get('vm_management', 'login_username', fallback=''),
+                "password": config_parser.get('vm_management', 'login_password', fallback='')
+            },
+            "hci_device": {
+                "ip": config_parser.get('vm_management', 'hci_ip', fallback=''),
+                "username": config_parser.get('vm_management', 'hci_username', fallback=''),
+                "password": config_parser.get('vm_management', 'hci_password', fallback='')
+            }
+        }
+        
+        # 验证配置完整性
+        if not all([
+            config['target_vm']['name'],
+            config['target_vm']['snapshot'],
+            config['network_config']['ip_address'],
+            config['network_config']['default_gateway'],
+            config['customer_config'],
+            config['login_credentials']['username'],
+            config['login_credentials']['password'],
+            config['hci_device']['ip'],
+            config['hci_device']['username'],
+            config['hci_device']['password']
+        ]):
+            logger.error("配置文件中缺少必要的配置项")
+            return None
+        
+        return config
+        
+    except Exception as e:
+        logger.error(f"读取配置文件失败: {e}")
+        return None
+
+def load_kb_test_config():
+    """
+    从all.ini加载KB测试配置
+    
+    Returns:
+        dict: 包含kb_number和target_id的配置，失败时返回None
+    """
+    config_file = "all.ini"
+    
+    # 检查配置文件是否存在
+    if not os.path.exists(config_file):
+        logger.error(f"配置文件 {config_file} 不存在")
+        return None
+    
+    try:
+        config_parser = configparser.ConfigParser()
+        config_parser.read(config_file, encoding='utf-8')
+        
+        # 验证配置文件结构
+        if 'kb_test' not in config_parser:
+            logger.error("配置文件中缺少kb_test部分")
+            return None
+        
+        kb_number = config_parser.get('kb_test', 'kb_number', fallback='')
+        target_id = config_parser.get('kb_test', 'target_id', fallback='')
+        
+        if not all([kb_number, target_id]):
+            logger.error("配置文件中缺少kb_number或target_id")
+            return None
+            
+        return {
+            'kb_number': kb_number,
+            'target_id': target_id
+        }
+        
+    except Exception as e:
+        logger.error(f"读取配置文件失败: {e}")
+        return None
 
 class HTTPHelper:
     """HTTP请求助手类，用于统一处理HTTP请求和错误"""
@@ -75,14 +371,7 @@ class HTTPHelper:
         for retry in range(max_retries):
             try:
                 logger.info(f"发送{method}请求到: {url}")
-                if headers:
-                    # 只记录关键请求头，避免记录完整请求头
-                    logger.debug(f"请求头: {headers}")
-                if data:
-                    # 只记录数据存在性，避免记录完整数据
-                    logger.debug(f"请求数据: 存在")
-                if params:
-                    logger.debug(f"请求参数: {params}")
+
                 
                 if method == 'GET':
                     resp = session.get(url, headers=headers, params=params, timeout=30)
@@ -93,9 +382,7 @@ class HTTPHelper:
                     return None
                 
                 logger.info(f"响应状态码: {resp.status_code}")
-                if resp.status_code != 200:
-                    # 只在响应失败时记录响应内容
-                    logger.debug(f"响应内容: {resp.text}")
+
                 
                 if resp.status_code == 200:
                     try:
@@ -131,14 +418,38 @@ class VMManagementWorkflow:
         self.config = None
         self.selected_config = None
         self.hci_credentials = None
+        # KB包下载结果存储
+        self.kb_download_result = {
+            'success': False,
+            'kb_sign_file': None,
+            'kb_file_path': None,
+            'kb_file_name': None
+        }
+        
+        # 初始化时自动加载配置
+        if self.load_config():
+            # 加载配置成功后，自动选择配置
+            self.select_config()
     
     def load_config(self):
         """加载配置文件"""
         try:
-            with open(self.config_file, 'r', encoding='utf-8') as f:
-                self.config = json.load(f)
-            logger.info(f"成功: 配置文件加载成功: {self.config_file}")
-            return True
+            # 优先从all.ini加载配置
+            ini_config = load_ini_config()
+            if ini_config:
+                self.config = ini_config
+                logger.info("成功: 从all.ini加载配置文件成功")
+                return True
+            
+            # 如果all.ini加载失败，尝试从原config.json加载作为备份
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    self.config = json.load(f)
+                logger.info(f"成功: 从{self.config_file}加载配置文件成功")
+                return True
+            else:
+                logger.error(f"错误: 配置文件{self.config_file}不存在")
+                return False
         except Exception as e:
             logger.error(f"错误: 加载配置文件失败: {e}")
             return False
@@ -167,11 +478,7 @@ class VMManagementWorkflow:
             logger.error("错误: 网络配置不完整")
             return False
         
-        # 验证KB包配置
-        kb_packages = self.config.get('kb_packages', {})
-        if not kb_packages.get('current'):
-            logger.error("错误: 本次KB包信息未配置")
-            return False
+
         
         # 验证客户配置
         customer_config = self.config.get('customer_config')
@@ -198,6 +505,22 @@ class VMManagementWorkflow:
     def get_hci_credentials(self):
         """获取HCI设备登录凭证"""
         try:
+            # 检查selected_config是否已设置
+            if self.selected_config is None:
+                logger.warning("警告: selected_config未设置，重新执行配置加载和选择")
+                # 重新加载配置
+                if not self.load_config():
+                    logger.error("错误: 重新加载配置失败")
+                    return False
+                # 重新选择配置
+                if not self.select_config():
+                    logger.error("错误: 重新选择配置失败")
+                    return False
+                # 重新获取HCI登录凭证
+                if not self.get_hci_credentials():
+                    logger.error("错误: 重新获取HCI登录凭证失败")
+                    return False
+            
             hci_device = self.selected_config.get('hci_device', {})
             ip = hci_device.get('ip')
             username = hci_device.get('username')
@@ -325,13 +648,19 @@ curl ^"https://{ip}/vapi/json/cluster/vms?group_type=group&sort_type=&desc=1&sce
                 curl_command,
                 shell=True,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
                 text=True,
                 cwd="E:\\1"
             )
             
             # 获取输出和错误
             stdout, stderr = process.communicate(timeout=60)  # 60秒超时
+            
+            # 打印curl命令输出，这样config_web.py就能捕获到并保存到日志文件中
+            if stdout:
+                logger.info(f"curl命令输出: {stdout}")
+            if stderr:
+                logger.info(f"curl命令错误: {stderr}")
             
             if process.returncode == 0 and stdout:
                 try:
@@ -392,13 +721,19 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
                 curl_command,
                 shell=True,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
                 text=True,
                 cwd="E:\\1"
             )
             
             # 获取输出和错误
             stdout, stderr = process.communicate(timeout=60)  # 60秒超时
+            
+            # 打印curl命令输出，这样config_web.py就能捕获到并保存到日志文件中
+            if stdout:
+                logger.info(f"curl命令输出: {stdout}")
+            if stderr:
+                logger.info(f"curl命令错误: {stderr}")
             
             if process.returncode == 0 and stdout:
                 try:
@@ -451,10 +786,16 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
             full_cookie = f"cluster=single_cluster; needAnalytic=need_analytic; vnc-keyboard=en-us; {cookie}; global.timeout.task={timestamp}"
             
             # 构建curl命令（参考vm_recover.py的成功实现，添加rtype和backup参数）
-            curl_command = f"curl -k -X POST \"https://{ip}/vapi/extjs/cluster/vm/{vmid}/recovery\" -H \"Accept: */*\" -H \"CSRFPreventionToken: {csrf_token}\" -H \"Cookie: {full_cookie}\" -H \"Content-Type: application/x-www-form-urlencoded; charset=UTF-8\" -H \"X-Requested-With: XMLHttpRequest\" --data-urlencode \"rtype=raw\" --data-urlencode \"snapid={snapshot_id}\" --data-urlencode \"backup=0\""
+            curl_command = f"curl -k -s -X POST \"https://{ip}/vapi/extjs/cluster/vm/{vmid}/recovery\" -H \"Accept: */*\" -H \"CSRFPreventionToken: {csrf_token}\" -H \"Cookie: {full_cookie}\" -H \"Content-Type: application/x-www-form-urlencoded; charset=UTF-8\" -H \"X-Requested-With: XMLHttpRequest\" --data-urlencode \"rtype=raw\" --data-urlencode \"snapid={snapshot_id}\" --data-urlencode \"backup=0\""
             
             # 执行curl命令
             result = subprocess.run(curl_command, shell=True, capture_output=True, text=True, encoding='utf-8', errors='ignore')
+            
+            # 打印curl命令输出，这样config_web.py就能捕获到并保存到日志文件中
+            if result.stdout:
+                logger.info(f"curl命令输出: {result.stdout}")
+            if result.stderr:
+                logger.info(f"curl命令错误: {result.stderr}")
             
             # 解析响应
             if result.stdout:
@@ -509,6 +850,7 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
             curl_command = [
                 'curl',
                 '-k',
+                '-s',
                 '-X', 'POST',
                 '-H', 'Accept: */*',
                 '-H', 'Accept-Language: zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
@@ -531,6 +873,12 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
             
             # 执行curl命令（使用列表参数避免shell解析问题）
             result = subprocess.run(curl_command, capture_output=True, text=True, encoding='utf-8', errors='ignore')
+            
+            # 打印curl命令输出，这样config_web.py就能捕获到并保存到日志文件中
+            if result.stdout:
+                logger.info(f"curl命令输出: {result.stdout}")
+            if result.stderr:
+                logger.info(f"curl命令错误: {result.stderr}")
             
             # 打印调试信息
             logger.info(f"启动命令退出码: {result.returncode}")
@@ -962,6 +1310,16 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
         """检测虚拟机是否重启完毕（独立创建浏览器）"""
         logger.info(f"正在检测虚拟机 {vm_name} 是否重启完毕...")
         
+        # 确保HCI凭证可用，如果为None则尝试获取
+        if self.hci_credentials is None:
+            logger.warning("HCI凭证未初始化，尝试获取...")
+            if not self.get_hci_credentials():
+                logger.error("获取HCI凭证失败，无法检测重启状态")
+                return False
+            if self.hci_credentials is None:
+                logger.error("HCI凭证仍然为None，无法检测重启状态")
+                return False
+        
         # 获取HCI设备IP和登录信息
         hci_ip = self.hci_credentials.get('ip')
         hci_username = self.hci_credentials.get('username')
@@ -1089,7 +1447,7 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
                         logger.info(f"✓ [{access_time}] 模板匹配检测到重启完成标志，连续成功次数: {success_count}/{required_successes}")
                     else:
                         success_count = 0
-                        logger.warning(f"✗ [{access_time}] 模板匹配未检测到重启完成标志，第 {attempt+1}/{max_attempts} 次尝试")
+                        logger.info(f"✗ [{access_time}] 模板匹配未检测到重启完成标志，第 {attempt+1}/{max_attempts} 次尝试")
                     
                     # 如果连续3次成功，关闭浏览器并返回True
                     if success_count >= required_successes:
@@ -1123,27 +1481,201 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
         logger.error(f"✗ 虚拟机 {vm_name} 重启检测超时")
         return False
         
-    def upgrade_kb_packages(self, vm_name, network_config, kb_packages):
-        """升级KB包（完整实现KB.py的下载和升级功能）"""
-        logger.info(f"正在为虚拟机 {vm_name} 升级KB包...")
+    def find_and_click_targets(self, page, download_path, target_number, target_id, kb_number):
+        """
+        在页面上查找并点击目标表格行
         
-        device_ip = self.get_clean_ip(network_config.get('ip_address'))
-        login_username = self.config.get('login_credentials', {}).get('username')
-        login_password = self.config.get('login_credentials', {}).get('password')
-        kb_number = kb_packages.get('current')
+        Args:
+            page: Playwright页面实例
+            download_path: 下载文件保存路径
+            target_number: 目标编号
+            target_id: 目标ID
+            kb_number: KB编号，用于创建子文件夹
+        """
+        try:
+            # 1. 查找目标编号
+            found = False
+            
+            logger.info(f"查找目标编号: {target_number}")
+            
+            # 等待表格加载
+            page.wait_for_selector('div.x-grid3-row', timeout=30000)
+            logger.info("表格加载完成")
+            
+            # 获取所有行
+            rows = page.query_selector_all('div.x-grid3-row')
+            logger.info(f"找到 {len(rows)} 行数据")
+            
+            # 遍历每一行
+            for index, row in enumerate(rows):
+                try:
+                    # 获取行内所有单元格
+                    cells = row.query_selector_all('div.x-grid3-cell-inner')
+                    
+                    # 检查每个单元格
+                    for cell_index, cell in enumerate(cells):
+                        try:
+                            # 获取单元格内容
+                            cell_text = cell.text_content()
+                            
+                            # 检查是否是目标编号
+                            if cell_text and target_number in cell_text:
+                                logger.info(f"找到目标编号: {cell_text.strip()}")
+                                # 点击该单元格
+                                cell.click()
+                                logger.info("点击目标编号成功")
+                                found = True
+                                break  # 找到后停止遍历
+                        except Exception as e:
+                            logger.error(f"处理单元格 {cell_index + 1} 时出错: {e}")
+                            continue
+                    
+                    if found:
+                        break
+                except Exception as e:
+                    logger.error(f"处理行 {index + 1} 时出错: {e}")
+                    continue
+            
+            if not found:
+                logger.warning(f"未找到目标编号: {target_number}")
+            
+            # 等待页面加载
+            page.wait_for_load_state("networkidle", timeout=30000)
+            
+            # 2. 查找目标ID
+            id_found = False
+            kb_sign_file = None
+            kb_file_path = None
+            kb_file_name = None
+            
+            logger.info(f"查找目标ID: {target_id}")
+            
+            # 等待表格加载
+            page.wait_for_selector('div.x-grid3-row', timeout=30000)
+            logger.info("第二个表格加载完成")
+            
+            # 获取所有行
+            rows = page.query_selector_all('div.x-grid3-row')
+            logger.info(f"找到 {len(rows)} 行数据")
+            
+            # 遍历每一行
+            for index, row in enumerate(rows):
+                try:
+                    # 获取行内所有单元格
+                    cells = row.query_selector_all('div.x-grid3-cell-inner')
+                    
+                    # 检查每个单元格
+                    for cell_index, cell in enumerate(cells):
+                        try:
+                            # 获取单元格内容
+                            cell_text = cell.text_content()
+                            
+                            # 检查是否是目标ID
+                            if cell_text and cell_text.strip() == target_id:
+                                logger.info(f"找到目标ID: {cell_text.strip()}")
+                                # 点击该单元格
+                                cell.click()
+                                logger.info("点击目标ID成功")
+                                
+                                # 查找并点击同一行的下载链接
+                                try:
+                                    # 查找同一行的下载KB链接
+                                    download_kb = row.query_selector('span.sim-link[actionname="download"]')
+                                    if download_kb:
+                                        logger.info("找到下载KB链接")
+                                        # 等待下载完成
+                                        with page.expect_download() as download_info:
+                                            download_kb.click()
+                                            logger.info("点击下载KB成功，等待下载完成...")
+                                        download = download_info.value
+                                        # 创建kb_number子文件夹
+                                        kb_download_path = os.path.join(download_path, kb_number)
+                                        if not os.path.exists(kb_download_path):
+                                            os.makedirs(kb_download_path)
+                                            logger.info(f"创建KB下载目录: {kb_download_path}")
+                                        # 保存到kb_number子文件夹
+                                        save_path = os.path.join(kb_download_path, download.suggested_filename)
+                                        download.save_as(save_path)
+                                        logger.info(f"KB文件下载成功: {save_path}")
+                                        # 记录非sign KB包的路径和文件名
+                                        kb_file_path = save_path
+                                        kb_file_name = download.suggested_filename
+                                    else:
+                                        logger.warning("未找到下载KB链接")
+                                    
+                                    # 查找同一行的下载KB SIGN链接
+                                    download_sign = row.query_selector('span.sim-link[actionname="downloadsign"]')
+                                    if download_sign:
+                                        logger.info("找到下载KB SIGN链接")
+                                        # 等待下载完成
+                                        with page.expect_download() as download_info:
+                                            download_sign.click()
+                                            logger.info("点击下载KB SIGN成功，等待下载完成...")
+                                        download = download_info.value
+                                        # 创建kb_number子文件夹（如果已存在则跳过）
+                                        kb_download_path = os.path.join(download_path, kb_number)
+                                        if not os.path.exists(kb_download_path):
+                                            os.makedirs(kb_download_path)
+                                            logger.info(f"创建KB下载目录: {kb_download_path}")
+                                        # 保存到kb_number子文件夹
+                                        save_path = os.path.join(kb_download_path, download.suggested_filename)
+                                        download.save_as(save_path)
+                                        logger.info(f"KB SIGN文件下载成功: {save_path}")
+                                        kb_sign_file = save_path
+                                    else:
+                                        logger.warning("未找到下载KB SIGN链接")
+                                except Exception as e:
+                                    logger.error(f"点击下载链接时出错: {e}")
+                                    import traceback
+                                    traceback.print_exc()
+                                
+                                id_found = True
+                                break  # 找到后停止遍历
+                        except Exception as e:
+                            logger.error(f"处理单元格 {cell_index + 1} 时出错: {e}")
+                            continue
+                    
+                    if id_found:
+                        break
+                except Exception as e:
+                    logger.error(f"处理行 {index + 1} 时出错: {e}")
+                    continue
+            
+            if not id_found:
+                logger.warning(f"未找到目标ID: {target_id}")
+            
+            return found and id_found, kb_sign_file, kb_file_path, kb_file_name
+            
+        except Exception as e:
+            logger.error(f"处理表格时出错: {e}")
+            import traceback
+            traceback.print_exc()
+            return False, None, None, None
+
+    def download_kb_packages(self, kb_number, target_id, download_path):
+        """下载KB包（使用KB_test的下载逻辑）"""
+        logger.info(f"开始下载KB包: kb_number={kb_number}, target_id={target_id}")
         
-        kb_number = kb_number.strip()
-        download_dir = os.path.join('F:\\KB', kb_number)
-        os.makedirs(download_dir, exist_ok=True)
+        # 确保下载目录存在
+        if not os.path.exists(download_path):
+            os.makedirs(download_path)
+            logger.info(f"创建下载目录: {download_path}")
+        else:
+            logger.info(f"下载目录已存在: {download_path}")
         
-        logger.info(f"设备IP: {device_ip}")
+        # 打印当前工作目录，用于调试
+        logger.info(f"当前工作目录: {os.getcwd()}")
+        logger.info(f"下载路径绝对路径: {os.path.abspath(download_path)}")
+        
         logger.info(f"KB编号: {kb_number}")
-        logger.info(f"下载目录: {download_dir}\n")
+        logger.info(f"目标ID: {target_id}")
+        logger.info(f"下载路径: {download_path}\n")
         
         kb_sign_file = None  # 记录KB SIGN文件路径
+        kb_file_path = None  # 记录非sign KB包路径
+        kb_file_name = None  # 记录非sign KB包名称
         
         with sync_playwright() as p:
-            # ========== 第一部分：下载KB包 ==========
             browser = p.chromium.launch(
                 headless=False,
                 args=['--ignore-certificate-errors', '--disable-web-security']
@@ -1152,7 +1684,7 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
             # 创建下载用的context
             download_context = browser.new_context(accept_downloads=True)
             download_page = download_context.new_page()
-            download_page.set_default_timeout(30000)
+            download_page.set_default_timeout(60000)
             
             try:
                 # 访问KB下载页面
@@ -1160,194 +1692,328 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
                 download_page.goto('http://10.156.99.96/kb.php#', wait_until='domcontentloaded')
                 download_page.wait_for_selector('#ext-comp-1016', state='visible')
                 
+                # 输入KB编号并搜索
                 kb_input = download_page.locator('#ext-comp-1016')
                 kb_input.fill(kb_number)
                 kb_input.press('Enter')
-                time.sleep(10)
+                logger.info(f"搜索KB编号: {kb_number}")
                 
-                # 下载KB SIGN和KB两个文件
-                logger.info('正在下载KB文件...\n')
+                # 等待搜索结果加载
+                download_page.wait_for_load_state("networkidle", timeout=60000)
+                logger.info("搜索结果加载完成")
                 
-                for file_type in ['下载KB SIGN', '下载KB']:
-                    try:
-                        # 设置下载处理器
-                        with download_page.expect_download(timeout=30000) as download_info:
-                            download_page.get_by_text(file_type, exact=file_type == '下载KB').click(timeout=10000)
-                        
-                        download = download_info.value
-                        save_path = os.path.join(download_dir, download.suggested_filename)
-                        download.save_as(save_path)
-                        logger.info(f'✓ {file_type}: {download.suggested_filename}')
-                        
-                        # 记录KB SIGN文件路径
-                        if file_type == '下载KB SIGN':
-                            kb_sign_file = save_path
-                        
-                        time.sleep(1)
-                    except Exception as e:
-                        logger.error(f'❌ {file_type} 下载失败: {e}')
+                # 执行表格操作，使用KB_test的下载逻辑，传递kb_number参数
+                success, kb_sign_file, kb_file_path, kb_file_name = self.find_and_click_targets(download_page, download_path, kb_number, target_id, kb_number)
                 
-                logger.info(f'\n✓ 下载完成！文件已保存到 {download_dir}')
+                if success:
+                    logger.info("KB包下载成功完成")
+                    logger.info(f"非sign KB包路径: {kb_file_path}")
+                    logger.info(f"非sign KB包名称: {kb_file_name}")
+                else:
+                    logger.error("KB包下载失败")
+                    download_context.close()
+                    browser.close()
+                    return False, None, None, None
                 
             except Exception as download_error:
                 logger.error(f'❌ KB下载失败: {download_error}')
                 download_context.close()
                 browser.close()
-                return False
-            
-            # 关闭下载页面的context（清理状态，避免污染登录页面）
-            download_context.close()
-            logger.info('已关闭下载页面的浏览器上下文')
-            
-            # ========== 第二部分：升级KB包 ==========
-            if kb_sign_file:
-                logger.info('\n' + '=' * 50)
-                logger.info('开始执行KB更新操作...\n')
-                
-                # 创建全新的context和page用于登录和更新（避免状态污染）
-                update_context = browser.new_context(ignore_https_errors=True)
-                update_page = update_context.new_page()
-                update_page.set_default_timeout(30000)
-                logger.info('已创建新的浏览器上下文')
-                
-                try:
-                    # 切换到更新页面（添加重试机制）
-                    max_retries = 5
-                    retry_count = 0
-                    while retry_count < max_retries:
-                        try:
-                            logger.info(f'尝试访问设备 {device_ip} (第 {retry_count + 1}/{max_retries} 次)...')
-                            update_page.goto(f'https://{device_ip}', timeout=30000)
-                            time.sleep(5)
-                            logger.info(f'✓ 成功访问设备 {device_ip}')
-                            break
-                        except Exception as goto_error:
-                            retry_count += 1
-                            if retry_count < max_retries:
-                                logger.warning(f'⚠ 访问设备失败: {goto_error}')
-                                wait_time = retry_count * 5  # 递增等待时间：5s, 10s, 15s, 20s
-                                logger.info(f'等待 {wait_time} 秒后重试...')
-                                time.sleep(wait_time)
-                            else:
-                                raise Exception(f'访问设备 {device_ip} 失败，已重试 {max_retries} 次')
-                    
-                    # 处理证书警告（如果存在）
-                    try:
-                        update_page.get_by_role('button', name='高级').click(timeout=3000)
-                        update_page.get_by_role('link', name=f'继续前往{device_ip}（不安全）').click(timeout=3000)
-                        time.sleep(2)
-                    except Exception:
-                        # 无证书警告，继续
-                        pass
-                    logger.info("无证书警告或已处理，继续...")
-                    
-                    # 输入登录信息
-                    logger.info("正在输入账号密码...")
-                    update_page.wait_for_selector('#login_user', state='visible', timeout=10000)
-                    login_user = update_page.locator('#login_user')
-                    login_user.click()
-                    login_user.fill('')
-                    
-                    # 逐字输入用户名
-                    for char in login_username:
-                        update_page.keyboard.type(char)
-                        update_page.wait_for_timeout(50)
-                    logger.info('账号已输入')
-                    
-                    update_page.wait_for_selector('#login_password', state='visible', timeout=10000)
-                    login_password_loc = update_page.locator('#login_password')
-                    login_password_loc.click()
-                    login_password_loc.fill('')
-                    
-                    # 逐字输入密码
-                    for char in login_password:
-                        update_page.keyboard.type(char)
-                        update_page.wait_for_timeout(50)
-                    logger.info(f'密码已输入')
-                    
-                    # 勾选协议并登录
-                    update_page.get_by_role('checkbox', name='我已认真阅读并同意').check()
-                    logger.info('已勾选同意条款')
-                    
-                    update_page.get_by_text('登录', exact=True).click()
-                    logger.info('已点击登录按钮，等待页面加载...')
-                    
-                    # 额外等待2秒
-                    time.sleep(8)
-              
-                    # 跳转到固件升级页面
-                    logger.info('正在跳转到升级页面...')
-                    update_page.goto(f'https://{device_ip}/WLAN/index.php#/maintain/DeviceUpdate',
-                             wait_until='domcontentloaded',
-                             timeout=30000)
-                    logger.info('✓ 已跳转到升级页面')
-                    
-                    # 等待升级页面加载
-                    time.sleep(5)
-                    logger.info('✓ 升级页面已加载')
-                    
-                    # 勾选"补丁包升级"单选框
-                    logger.info('正在勾选"补丁包升级"...')
-                    update_page.get_by_role('radio', name='补丁包升级').check()
-                    logger.info('✓ 已勾选"补丁包升级"')
-                    time.sleep(3)
-
-                    
-                    # 上传KB SIGN文件
-                    logger.info('正在上传补丁包...')
-                    file_input = update_page.locator('input[type="file"]').first
-                    if file_input.is_visible():
-                        file_input.set_input_files(kb_sign_file)
-                        logger.info(f'✓ 已上传补丁包: {os.path.basename(kb_sign_file)}')
-                        time.sleep(5)  # 等待上传完成
-                    else:
-                        logger.error('❌ 未找到文件上传输入框')
-                        browser.close()
-                        return False
-                    
-                    # 点击"开始升级"按钮
-                    logger.info('正在点击"开始升级"按钮...')
-                    update_page.get_by_role('button', name='开始升级').click()
-                    logger.info('✓ 已点击"开始升级"按钮')
-                    time.sleep(3)
-                    
-                    # 点击"确定"按钮
-                    logger.info('正在点击"确定"按钮...')
-                    # 1. 先定位包含"确认"文本的弹窗容器（缩小上下文，避免匹配其他按钮）
-                    dialog_container = update_page.locator("div", has_text="确认")
-                    # 2. 在弹窗容器内定位"确定"按钮并点击（优先匹配带 x-btn-text 类的按钮，更精准）
-                    dialog_container.locator(".x-btn-text", has_text="确定").click()
-                    logger.info('✓ 已点击"确定"按钮')
-                    
-                    # 停20秒确认更新
-                    logger.info('等待20秒确认更新...')
-                    time.sleep(20)
-                    
-                    # 等待页面自动刷新
-                    logger.info('等待页面自动刷新...')
-                    update_page.wait_for_load_state('networkidle', timeout=30000)
-                    logger.info('✓ 页面已自动刷新完成')
-                
-                    logger.info(f'\n✓ 虚拟机 {vm_name} KB包升级成功！')
-                    logger.info('='*50)
-         
-                except Exception as update_error:
-                    logger.error(f"✗ KB更新失败: {update_error}")
-                    traceback.print_exc()
-                    update_context.close()
-                    return False
-                finally:
-                    # 关闭更新用的context
-                    update_context.close()
-                    logger.info('已关闭更新操作的浏览器上下文')
-            else:
-                logger.error('❌ 未找到KB SIGN文件，跳过更新操作')
+                return False, None, None, None
+            finally:
+                # 关闭下载页面的context（清理状态，避免污染登录页面）
+                download_context.close()
                 browser.close()
-                return False
+                logger.info('已关闭下载页面的浏览器上下文')
         
-        # with sync_playwright() 会自动关闭browser
-        return True
+        return True, kb_sign_file, kb_file_path, kb_file_name
     
+    def update_kb_packages(self, vm_name, network_config, kb_sign_file, login_username, login_password):
+        """升级KB包（将下载的KB SIGN文件上传到设备并执行升级操作）"""
+        logger.info(f"开始升级KB包到虚拟机 {vm_name}...")
+        
+        device_ip = self.get_clean_ip(network_config.get('ip_address'))
+        
+        logger.info(f"设备IP: {device_ip}")
+        logger.info(f"KB SIGN文件: {kb_sign_file}")
+        
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=False,
+                args=['--ignore-certificate-errors', '--disable-web-security']
+            )
+            
+            # 创建全新的context和page用于登录和更新（避免状态污染）
+            update_context = browser.new_context(ignore_https_errors=True)
+            update_page = update_context.new_page()
+            update_page.set_default_timeout(30000)
+            logger.info('已创建新的浏览器上下文')
+            
+            try:
+                # 切换到更新页面（添加重试机制）
+                max_retries = 5
+                retry_count = 0
+                while retry_count < max_retries:
+                    try:
+                        logger.info(f'尝试访问设备 {device_ip} (第 {retry_count + 1}/{max_retries} 次)...')
+                        update_page.goto(f'https://{device_ip}', timeout=30000)
+                        time.sleep(5)
+                        logger.info(f'✓ 成功访问设备 {device_ip}')
+                        break
+                    except Exception as goto_error:
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            logger.warning(f'⚠ 访问设备失败: {goto_error}')
+                            wait_time = retry_count * 5  # 递增等待时间：5s, 10s, 15s, 20s
+                            logger.info(f'等待 {wait_time} 秒后重试...')
+                            time.sleep(wait_time)
+                        else:
+                            raise Exception(f'访问设备 {device_ip} 失败，已重试 {max_retries} 次')
+                
+                # 处理证书警告（如果存在）
+                try:
+                    update_page.get_by_role('button', name='高级').click(timeout=3000)
+                    update_page.get_by_role('link', name=f'继续前往{device_ip}（不安全）').click(timeout=3000)
+                    time.sleep(2)
+                except Exception:
+                    # 无证书警告，继续
+                    pass
+                logger.info("无证书警告或已处理，继续...")
+                
+                # 输入登录信息
+                logger.info("正在输入账号密码...")
+                update_page.wait_for_selector('#login_user', state='visible', timeout=10000)
+                login_user = update_page.locator('#login_user')
+                login_user.click()
+                login_user.fill('')
+                
+                # 逐字输入用户名
+                for char in login_username:
+                    update_page.keyboard.type(char)
+                    update_page.wait_for_timeout(50)
+                logger.info('账号已输入')
+                
+                update_page.wait_for_selector('#login_password', state='visible', timeout=10000)
+                login_password_loc = update_page.locator('#login_password')
+                login_password_loc.click()
+                login_password_loc.fill('')
+                
+                # 逐字输入密码
+                for char in login_password:
+                    update_page.keyboard.type(char)
+                    update_page.wait_for_timeout(50)
+                logger.info(f'密码已输入')
+                
+                # 勾选协议并登录
+                update_page.get_by_role('checkbox', name='我已认真阅读并同意').check()
+                logger.info('已勾选同意条款')
+                
+                update_page.get_by_text('登录', exact=True).click()
+                logger.info('已点击登录按钮，等待页面加载...')
+                
+                # 额外等待2秒
+                time.sleep(8)
+          
+                # 跳转到固件升级页面
+                logger.info('正在跳转到升级页面...')
+                update_page.goto(f'https://{device_ip}/WLAN/index.php#/maintain/DeviceUpdate',
+                         wait_until='domcontentloaded',
+                         timeout=30000)
+                logger.info('✓ 已跳转到升级页面')
+                
+                # 等待升级页面加载
+                time.sleep(5)
+                logger.info('✓ 升级页面已加载')
+                
+                # 勾选"补丁包升级"单选框
+                logger.info('正在勾选"补丁包升级"...')
+                update_page.get_by_role('radio', name='补丁包升级').check()
+                logger.info('✓ 已勾选"补丁包升级"')
+                time.sleep(3)
+
+                
+                # 上传KB SIGN文件
+                logger.info('正在上传补丁包...')
+                file_input = update_page.locator('input[type="file"]').first
+                if file_input.is_visible():
+                    file_input.set_input_files(kb_sign_file)
+                    logger.info(f'✓ 已上传补丁包: {os.path.basename(kb_sign_file)}')
+                    time.sleep(5)  # 等待上传完成
+                else:
+                    logger.error('❌ 未找到文件上传输入框')
+                    update_context.close()
+                    browser.close()
+                    return False
+                
+                # 点击"开始升级"按钮
+                logger.info('正在点击"开始升级"按钮...')
+                update_page.get_by_role('button', name='开始升级').click()
+                logger.info('✓ 已点击"开始升级"按钮')
+                time.sleep(3)
+                
+                # 点击"确定"按钮
+                logger.info('正在点击"确定"按钮...')
+                # 1. 先定位包含"确认"文本的弹窗容器（缩小上下文，避免匹配其他按钮）
+                dialog_container = update_page.locator("div", has_text="确认")
+                # 2. 在弹窗容器内定位"确定"按钮并点击（优先匹配带 x-btn-text 类的按钮，更精准）
+                dialog_container.locator(".x-btn-text", has_text="确定").click()
+                logger.info('✓ 已点击"确定"按钮')
+                
+                # 停20秒确认更新
+                logger.info('等待20秒确认更新...')
+                time.sleep(20)
+                
+                # 等待页面自动刷新
+                logger.info('等待页面自动刷新...')
+                update_page.wait_for_load_state('networkidle', timeout=30000)
+                logger.info('✓ 页面已自动刷新完成')
+            
+                logger.info(f'\n✓ 虚拟机 {vm_name} KB包升级成功！')
+                logger.info('='*50)
+                return True
+         
+            except Exception as update_error:
+                logger.error(f"✗ KB更新失败: {update_error}")
+                traceback.print_exc()
+                return False
+            finally:
+                # 关闭更新用的context
+                update_context.close()
+                browser.close()
+                logger.info('已关闭更新操作的浏览器上下文')
+    
+    def upgrade_kb_packages(self, vm_name, network_config, kb_packages):
+        """升级KB包（使用KB_test的下载逻辑和配置）"""
+        # 确保time模块可用
+        global time
+        logger.info(f"正在为虚拟机 {vm_name} 升级KB包...")
+        
+        # 从实例变量获取下载结果
+        kb_sign_file = self.kb_download_result.get('kb_sign_file')
+        kb_file_path = self.kb_download_result.get('kb_file_path')
+        kb_file_name = self.kb_download_result.get('kb_file_name')
+        
+        if not kb_sign_file:
+            logger.error('❌ 未找到KB SIGN文件，跳过更新操作')
+            return False
+        
+        # 获取登录凭证
+        login_username = self.config.get('login_credentials', {}).get('username')
+        login_password = self.config.get('login_credentials', {}).get('password')
+        
+        # 调用升级模块
+        update_success = self.update_kb_packages(vm_name, network_config, kb_sign_file, login_username, login_password)
+        
+        if not update_success:
+            logger.error("KB包升级失败")
+            return False
+        
+        # 启动kb_scan和kb_scan_report的线程
+        import threading
+        import subprocess
+        
+        def run_kb_scan_and_report():
+            """运行kb_scan和kb_scan_report"""
+            try:
+                if kb_file_path:
+                    logger.info("\n" + "=" * 50)
+                    logger.info("开始执行KB扫描...")
+                    logger.info("=" * 50)
+                    
+                    # 运行kb_scan.py，传递file_path参数
+                    logger.info(f"启动kb_scan.py，文件路径: {kb_file_path}")
+                    kb_scan_cmd = ["python", "KB_scan.py", "--file_path", kb_file_path]
+                    logger.info(f"执行命令: {kb_scan_cmd}")
+                    
+                    # 当命令以列表形式传递时，使用shell=False
+                    kb_scan_process = subprocess.Popen(kb_scan_cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                    
+                    # 等待kb_scan.py运行结束并获取输出
+                    stdout, stderr = kb_scan_process.communicate()
+                    exit_code = kb_scan_process.returncode
+                    
+                    if exit_code == 0:
+                        logger.info("kb_scan.py运行完成，退出码: 0")
+                        if stdout:
+                            logger.info(f"kb_scan.py输出: {stdout}")
+                    else:
+                        logger.error(f"kb_scan.py运行失败，退出码: {exit_code}")
+                        if stderr:
+                            logger.error(f"kb_scan.py错误: {stderr}")
+                        if stdout:
+                            logger.info(f"kb_scan.py输出: {stdout}")
+                    
+                    # 等待两分钟
+                    logger.info("等待两分钟后运行kb_scan_report...")
+                    time.sleep(120)
+                    
+                    if kb_file_name:
+                        logger.info("\n" + "=" * 50)
+                        logger.info("开始执行KB扫描报告...")
+                        logger.info("=" * 50)
+                        
+                        # 运行kb_scan_report.py，传递kb_package参数
+                        logger.info(f"启动kb_scan_report.py，KB包名称: {kb_file_name}")
+                        kb_scan_report_cmd = ["python", "kb_scan_report.py", "--target", kb_file_name]
+                        logger.info(f"执行命令: {kb_scan_report_cmd}")
+                        
+                        # 当命令以列表形式传递时，使用shell=False
+                        kb_scan_report_process = subprocess.Popen(kb_scan_report_cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                        stdout, stderr = kb_scan_report_process.communicate()
+                        exit_code = kb_scan_report_process.returncode
+                        
+                        if exit_code == 0:
+                            logger.info("kb_scan_report.py运行完成，退出码: 0")
+                            if stdout:
+                                logger.info(f"kb_scan_report.py输出: {stdout}")
+                        else:
+                            logger.error(f"kb_scan_report.py运行失败，退出码: {exit_code}")
+                            if stderr:
+                                logger.error(f"kb_scan_report.py错误: {stderr}")
+                            if stdout:
+                                logger.info(f"kb_scan_report.py输出: {stdout}")
+                    else:
+                        logger.error("未获取到KB包名称，跳过kb_scan_report")
+                else:
+                    logger.error("未获取到KB包路径，跳过kb_scan和kb_scan_report")
+            except Exception as e:
+                logger.error(f"运行kb_scan和kb_scan_report时出错: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        # 启动kb_scan和kb_scan_report线程，与vm_management同步运行
+        kb_scan_thread = threading.Thread(target=run_kb_scan_and_report)
+        # 移除daemon=True设置，使线程成为非守护线程
+        # kb_scan_thread.daemon = True  # 设置为守护线程，主程序退出时自动退出
+        kb_scan_thread.start()
+        logger.info("kb_scan线程已启动，与vm_management同步运行")
+        
+        return kb_scan_thread
+    
+    def run_kb_compare(self):
+        """运行kb_compare_playwright流程"""
+        logger.info("="*50)
+        logger.info("开始执行KB冲突检测流程")
+        logger.info("="*50)
+        
+        try:
+            # 导入并运行kb_compare_playwright流程
+            from kb_compare_playwright import run as run_kb_compare
+            from playwright.sync_api import sync_playwright
+            
+            logger.info("启动kb_compare_playwright流程...")
+            with sync_playwright() as playwright:
+                run_kb_compare(playwright)
+            
+            logger.info("KB冲突检测流程执行成功")
+            logger.info("="*50)
+            return True
+        except Exception as e:
+            logger.error(f"错误: KB冲突检测流程执行失败: {e}")
+            traceback.print_exc()
+            logger.info("="*50)
+            return False
+
     def run_workflow(self):
         """运行完整的虚拟机管理工作流"""
         logger.info("="*50)
@@ -1355,38 +2021,73 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
         logger.info("="*50)
         
         try:
-            # 1. 加载配置
+            # 0. 下载KB包（流程最前执行）
+            logger.info("开始下载KB包...")
+            
+            # 加载KB测试配置
+            kb_test_config = load_kb_test_config()
+            if not kb_test_config:
+                logger.error("无法加载KB测试配置，退出程序")
+                return False
+            
+            kb_number = kb_test_config.get('kb_number')
+            target_id = kb_test_config.get('target_id')
+            
+            # 设置下载路径，与test_KB.py保持一致
+            download_path = r"F:\KB"
+            
+            # 调用下载模块
+            download_success, kb_sign_file, kb_file_path, kb_file_name = self.download_kb_packages(kb_number, target_id, download_path)
+            
+            # 存储下载结果
+            self.kb_download_result = {
+                'success': download_success,
+                'kb_sign_file': kb_sign_file,
+                'kb_file_path': kb_file_path,
+                'kb_file_name': kb_file_name
+            }
+            
+            if not download_success:
+                logger.error("KB包下载失败，退出工作流")
+                return False
+            
+            # 1. 运行KB冲突检测流程
+            if not self.run_kb_compare():
+                logger.error("KB冲突检测流程执行失败，退出工作流")
+                return False
+            
+            # 2. 加载配置
             if not self.load_config():
                 return False
             
-            # 2. 验证配置
+            # 3. 验证配置
             if not self.validate_config():
                 return False
             
-            # 3. 选择配置
+            # 4. 选择配置
             if not self.select_config():
                 return False
             
-            # 4. 获取HCI登录凭证
+            # 5. 获取HCI登录凭证
             if not self.get_hci_credentials():
                 return False
             
-            # 5. 获取目标虚拟机信息
+            # 6. 获取目标虚拟机信息
             target_vm = self.selected_config.get('target_vm', {})
             vm_name = target_vm.get('name')
             snapshot_name = target_vm.get('snapshot')
             
-            # 6. 获取虚拟机ID
+            # 7. 获取虚拟机ID
             vmid = self.get_vm_id(vm_name)
             if not vmid:
                 return False
             
-            # 7. 获取快照列表
+            # 8. 获取快照列表
             snapshots = self.get_vm_snapshots(vmid)
             if not snapshots:
                 return False
             
-            # 8. 查找指定快照ID
+            # 9. 查找指定快照ID
             snapshot_id = None
             for snapshot in snapshots:
                 if snapshot.get('name') == snapshot_name:
@@ -1397,28 +2098,46 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
                 logger.error(f"✗ 未找到快照: {snapshot_name}")
                 return False
             
-            # 9. 恢复虚拟机快照
+            # 10. 恢复虚拟机快照
             if not self.recover_vm_snapshot(vmid, snapshot_id):
                 return False
             
-            # 10. 等待10秒后启动虚拟机
+            # 11. 等待10秒后启动虚拟机
             logger.info("等待10秒后启动虚拟机...")
             time.sleep(10)
             
-            # 11. 启动虚拟机
+            # 12. 启动虚拟机
             if not self.start_vm(vmid):
                 return False
             
-            # 12. 检测虚拟机是否重启完毕
+            # 13. 检测虚拟机是否重启完毕
             network_config = self.config.get('network_config', {})
             if not self.check_vm_reboot_completed(vm_name, network_config, vmid):
                 return False
             
-            # 13. 修改虚拟机IP地址（独立创建浏览器）
-            if not self.modify_vm_ip(vm_name, network_config):
+            # 14. 修改虚拟机IP地址（独立创建浏览器），添加错误重试机制
+            logger.info("开始修改虚拟机IP地址...")
+            modify_ip_success = False
+            retry_count = 0
+            max_retries = 1  # 最多重试1次
+            
+            while retry_count <= max_retries:
+                if self.modify_vm_ip(vm_name, network_config):
+                    modify_ip_success = True
+                    logger.info("✓ 修改虚拟机IP地址成功")
+                    break
+                else:
+                        retry_count += 1
+                        if retry_count <= max_retries:
+                            logger.warning(f"⚠ 修改虚拟机IP地址失败，10秒后重试...")
+                            time.sleep(10)  # 等待10秒后重试
+                        else:
+                            logger.error("✗ 修改虚拟机IP地址失败，已达到最大重试次数")
+            
+            if not modify_ip_success:
                 return False
             
-            #14. 恢复客户配置
+            # 15. 恢复客户配置，添加错误重试机制
             logger.info("正在恢复客户配置...")
             customer_config = self.config.get('customer_config')
             
@@ -1428,18 +2147,36 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
             else:
                 config_file_path = customer_config
             
-            if config_file_path:
-                with sync_playwright() as p:
-                    peizhi.run(
-                        p,
-                        config_file_path=config_file_path,
-                        device_ip=self.get_clean_ip(network_config.get('ip_address')),
-                        login_username=self.config.get('login_credentials', {}).get('username'),
-                        login_password=self.config.get('login_credentials', {}).get('password')
-                    )
-                logger.info("成功: 客户配置恢复完成")
-            else:
-                logger.error("错误: 客户配置文件路径未配置")
+            restore_config_success = False
+            retry_count = 0
+            max_retries = 1  # 最多重试1次
+            
+            while retry_count <= max_retries:
+                if config_file_path:
+                    try:
+                        with sync_playwright() as p:
+                            peizhi.run(
+                                p,
+                                config_file_path=config_file_path,
+                                device_ip=self.get_clean_ip(network_config.get('ip_address')),
+                                login_username=self.config.get('login_credentials', {}).get('username'),
+                                login_password=self.config.get('login_credentials', {}).get('password')
+                            )
+                        logger.info("成功: 客户配置恢复完成")
+                        restore_config_success = True
+                        break
+                    except Exception as e:
+                        retry_count += 1
+                        if retry_count <= max_retries:
+                            logger.warning(f"⚠ 恢复客户配置失败: {e}，10秒后重试...")
+                            time.sleep(10)  # 等待10秒后重试
+                        else:
+                            logger.error(f"✗ 恢复客户配置失败: {e}，已达到最大重试次数")
+                else:
+                    logger.error("错误: 客户配置文件路径未配置")
+                    break
+            
+            if not restore_config_success:
                 return False
             
             # 16. 检查虚拟机是否重启完毕
@@ -1449,14 +2186,147 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
                 return False
             logger.info("成功: 虚拟机重启检测完成")
 
-             # 13. 修改虚拟机IP地址（独立创建浏览器）
-            if not self.modify_vm_ip(vm_name, network_config):
+            # 17. 修改虚拟机IP地址（独立创建浏览器），再次添加错误重试机制
+            logger.info("再次修改虚拟机IP地址...")
+            modify_ip_success = False
+            retry_count = 0
+            max_retries = 1  # 最多重试1次
+            
+            while retry_count <= max_retries:
+                if self.modify_vm_ip(vm_name, network_config):
+                    modify_ip_success = True
+                    logger.info("✓ 再次修改虚拟机IP地址成功")
+                    break
+                else:
+                        retry_count += 1
+                        if retry_count <= max_retries:
+                            logger.warning(f"⚠ 再次修改虚拟机IP地址失败，10秒后重试...")
+                            time.sleep(10)  # 等待10秒后重试
+                        else:
+                            logger.error("✗ 再次修改虚拟机IP地址失败，已达到最大重试次数")
+            
+            if not modify_ip_success:
                 return False
             
-            # 17. 升级KB包
-            kb_packages = self.config.get('kb_packages', {})
-            if not self.upgrade_kb_packages(vm_name, network_config, kb_packages):
+            # 18. 升级KB包，添加错误重试机制
+            logger.info("开始升级KB包...")
+            login_username = self.config.get('login_credentials', {}).get('username')
+            login_password = self.config.get('login_credentials', {}).get('password')
+            
+            # 从实例变量获取下载结果
+            kb_sign_file = self.kb_download_result.get('kb_sign_file')
+            kb_file_path = self.kb_download_result.get('kb_file_path')
+            kb_file_name = self.kb_download_result.get('kb_file_name')
+            
+            upgrade_kb_success = False
+            retry_count = 0
+            max_retries = 1  # 最多重试1次
+            
+            kb_scan_thread = None
+            while retry_count <= max_retries:
+                # 调用升级模块
+                update_success = self.update_kb_packages(vm_name, network_config, kb_sign_file, login_username, login_password)
+                
+                if update_success:
+                    # 启动kb_scan和kb_scan_report的线程
+                    import threading
+                    import subprocess
+                    
+                    def run_kb_scan_and_report():
+                        """运行kb_scan和kb_scan_report"""
+                        try:
+                            if kb_file_path:
+                                logger.info("\n" + "=" * 50)
+                                logger.info("开始执行KB扫描...")
+                                logger.info("=" * 50)
+                                
+                                # 运行kb_scan.py，传递file_path参数
+                                logger.info(f"启动kb_scan.py，文件路径: {kb_file_path}")
+                                kb_scan_cmd = ["python", "KB_scan.py", "--file_path", kb_file_path]
+                                logger.info(f"执行命令: {kb_scan_cmd}")
+                                
+                                # 当命令以列表形式传递时，使用shell=False
+                                kb_scan_process = subprocess.Popen(kb_scan_cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                                
+                                # 等待kb_scan.py运行结束并获取输出
+                                stdout, stderr = kb_scan_process.communicate()
+                                exit_code = kb_scan_process.returncode
+                                
+                                if exit_code == 0:
+                                    logger.info("kb_scan.py运行完成，退出码: 0")
+                                    if stdout:
+                                        logger.info(f"kb_scan.py输出: {stdout}")
+                                else:
+                                    logger.error(f"kb_scan.py运行失败，退出码: {exit_code}")
+                                    if stderr:
+                                        logger.error(f"kb_scan.py错误: {stderr}")
+                                    if stdout:
+                                        logger.info(f"kb_scan.py输出: {stdout}")
+                                
+                                # 等待两分钟
+                                logger.info("等待两分钟后运行kb_scan_report...")
+                                time.sleep(120)
+                                
+                                if kb_file_name:
+                                    logger.info("\n" + "=" * 50)
+                                    logger.info("开始执行KB扫描报告...")
+                                    logger.info("=" * 50)
+                                    
+                                    # 运行kb_scan_report.py，传递kb_package参数
+                                    logger.info(f"启动kb_scan_report.py，KB包名称: {kb_file_name}")
+                                    kb_scan_report_cmd = ["python", "kb_scan_report.py", "--target", kb_file_name]
+                                    logger.info(f"执行命令: {kb_scan_report_cmd}")
+                                    
+                                    # 当命令以列表形式传递时，使用shell=False
+                                    kb_scan_report_process = subprocess.Popen(kb_scan_report_cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                                    stdout, stderr = kb_scan_report_process.communicate()
+                                    exit_code = kb_scan_report_process.returncode
+                                    
+                                    if exit_code == 0:
+                                        logger.info("kb_scan_report.py运行完成，退出码: 0")
+                                        if stdout:
+                                            logger.info(f"kb_scan_report.py输出: {stdout}")
+                                    else:
+                                        logger.error(f"kb_scan_report.py运行失败，退出码: {exit_code}")
+                                        if stderr:
+                                            logger.error(f"kb_scan_report.py错误: {stderr}")
+                                        if stdout:
+                                            logger.info(f"kb_scan_report.py输出: {stdout}")
+                                else:
+                                    logger.error("未获取到KB包名称，跳过kb_scan_report")
+                            else:
+                                logger.error("未获取到KB包路径，跳过kb_scan和kb_scan_report")
+                        except Exception as e:
+                            logger.error(f"运行kb_scan和kb_scan_report时出错: {e}")
+                            import traceback
+                            traceback.print_exc()
+                    
+                    # 启动kb_scan和kb_scan_report线程，与vm_management同步运行
+                    kb_scan_thread = threading.Thread(target=run_kb_scan_and_report)
+                    # 移除daemon=True设置，使线程成为非守护线程
+                    # kb_scan_thread.daemon = True  # 设置为守护线程，主程序退出时自动退出
+                    kb_scan_thread.start()
+                    logger.info("kb_scan线程已启动，与vm_management同步运行")
+                    
+                    upgrade_kb_success = True
+                    logger.info("✓ 升级KB包成功")
+                    break
+                else:
+                        retry_count += 1
+                        if retry_count <= max_retries:
+                            logger.warning(f"⚠ 升级KB包失败，10秒后重试...")
+                            time.sleep(10)  # 等待10秒后重试
+                        else:
+                            logger.error("✗ 升级KB包失败，已达到最大重试次数")
+            
+            if not upgrade_kb_success:
                 return False
+            
+            # 等待kb_scan线程完成
+            if kb_scan_thread:
+                logger.info("等待kb_scan线程完成...")
+                kb_scan_thread.join()
+                logger.info("kb_scan线程已完成")
             
             logger.info("="*50)
             logger.info("虚拟机管理工作流执行完成")
@@ -1482,7 +2352,7 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
             logger.info(f"正在查询虚拟机 {vmid} 的快照列表...")
             
             # 使用curl命令获取快照列表
-            curl_command = f"curl -k \"https://{ip}/vapi/extjs/cluster/vm/{vmid}/snapshot\" -H \"Accept: */*\" -H \"CSRFPreventionToken: {csrf_token}\" -H \"Cookie: {cookie}\" -H \"X-Requested-With: XMLHttpRequest\""
+            curl_command = f"curl -k -s \"https://{ip}/vapi/extjs/cluster/vm/{vmid}/snapshot\" -H \"Accept: */*\" -H \"CSRFPreventionToken: {csrf_token}\" -H \"Cookie: {cookie}\" -H \"X-Requested-With: XMLHttpRequest\""
             
             # 执行curl命令
             result = subprocess.run(curl_command, shell=True, capture_output=True, text=True, encoding='utf-8', errors='ignore')
@@ -1534,47 +2404,74 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
             logger.info(f"正在查找虚拟机 {vm_name}...")
             
             # 使用curl命令获取虚拟机列表（参考vm_group.py的成功实现）
-            curl_command = f"curl -k \"https://{ip}/vapi/extjs/cluster/vms?group_type=group&sort_type=&desc=1&scene=resources_used\" -H \"Accept: */*\" -H \"CSRFPreventionToken: {csrf_token}\" -H \"Cookie: {cookie}\" -H \"X-Requested-With: XMLHttpRequest\""
+            curl_command = f"curl -k -s \"https://{ip}/vapi/extjs/cluster/vms?group_type=group&sort_type=&desc=1&scene=resources_used\" -H \"Accept: */*\" -H \"CSRFPreventionToken: {csrf_token}\" -H \"Cookie: {cookie}\" -H \"X-Requested-With: XMLHttpRequest\""
             
-            # 执行curl命令
-            result = subprocess.run(curl_command, shell=True, capture_output=True, text=True, encoding='utf-8', errors='ignore')
+            # 执行curl命令，最多尝试10次
+            max_attempts = 10
+            reauth_attempts = 0
+            max_reauth_attempts = 2
             
-            logger.info(f"curl响应状态: 完成")
-            
-            # 解析响应
-            if result.stdout:
-                try:
-                    response_data = json.loads(result.stdout)
+            for attempt in range(max_attempts):
+                logger.info(f"尝试获取虚拟机列表，第 {attempt + 1}/{max_attempts} 次...")
+                result = subprocess.run(curl_command, shell=True, capture_output=True, text=True, encoding='utf-8', errors='ignore')
+                
+                logger.info(f"curl响应状态: 完成")
+                
+                # 解析响应
+                if result.stdout:
+                    try:
+                        response_data = json.loads(result.stdout)
+                        
+                        if response_data.get("success") == 1:
+                            # 解析虚拟机列表（数据是分组的）
+                            groups = response_data.get("data", [])
+                            
+                            # 在所有组中查找虚拟机
+                            for group in groups:
+                                vms = group.get("data", [])
+                                for vm in vms:
+                                    if vm.get("name") == vm_name:
+                                        vmid = vm.get("vmid")
+                                        logger.info(f"成功: 找到虚拟机: {vm_name}, ID: {vmid}")
+                                        return vmid
+                            
+                            # 打印所有虚拟机名称，帮助调试
+                            logger.info("未找到虚拟机，所有可用虚拟机名称:")
+                            for group in groups:
+                                vms = group.get("data", [])
+                                for vm in vms:
+                                    logger.info(f"  - {vm.get('name')}")
+                            logger.error(f"错误: 未找到虚拟机: {vm_name}")
+                            return None
+                        else:
+                            logger.error(f"错误: 获取虚拟机列表失败: success不为1")
+                            logger.error(f"响应: {result.stdout[:200]}")
+                    except json.JSONDecodeError as e:
+                        logger.error(f"错误: 解析响应JSON失败: {e}")
+                        logger.error(f"响应内容: {result.stdout[:200]}")
+                else:
+                    logger.error(f"错误: 获取虚拟机列表失败: 响应为空")
+                    if result.stderr:
+                        logger.error(f"错误信息: {result.stderr}")
+                
+                # 如果不是最后一次尝试，等待10秒后重试
+                if attempt < max_attempts - 1:
+                    # 每失败3次后，重新获取HCI登录凭证
+                    if (attempt + 1) % 3 == 0 and reauth_attempts < max_reauth_attempts:
+                        logger.warning(f"⚠ 连续获取虚拟机列表失败，尝试重新获取HCI登录凭证...")
+                        if self.get_hci_credentials():
+                            logger.info("成功: 重新获取HCI登录凭证")
+                            # 更新凭证信息
+                            csrf_token = self.hci_credentials.get('csrf_token')
+                            cookie = self.hci_credentials.get('cookie')
+                            # 重新构建curl命令
+                            curl_command = f"curl -k -s \"https://{ip}/vapi/extjs/cluster/vms?group_type=group&sort_type=&desc=1&scene=resources_used\" -H \"Accept: */*\" -H \"CSRFPreventionToken: {csrf_token}\" -H \"Cookie: {cookie}\" -H \"X-Requested-With: XMLHttpRequest\""
+                            reauth_attempts += 1
+                        else:
+                            logger.error("失败: 重新获取HCI登录凭证失败")
                     
-                    if response_data.get("success") == 1:
-                        # 解析虚拟机列表（数据是分组的）
-                        groups = response_data.get("data", [])
-                        
-                        # 在所有组中查找虚拟机
-                        for group in groups:
-                            vms = group.get("data", [])
-                            for vm in vms:
-                                if vm.get("name") == vm_name:
-                                    vmid = vm.get("vmid")
-                                    logger.info(f"成功: 找到虚拟机: {vm_name}, ID: {vmid}")
-                                    return vmid
-                        
-                        # 打印所有虚拟机名称，帮助调试
-                        logger.info("未找到虚拟机，所有可用虚拟机名称:")
-                        for group in groups:
-                            vms = group.get("data", [])
-                            for vm in vms:
-                                logger.info(f"  - {vm.get('name')}")
-                    else:
-                        logger.error(f"错误: 获取虚拟机列表失败: success不为1")
-                        logger.error(f"响应: {result.stdout[:200]}")
-                except json.JSONDecodeError as e:
-                    logger.error(f"错误: 解析响应JSON失败: {e}")
-                    logger.error(f"响应内容: {result.stdout[:200]}")
-            else:
-                logger.error(f"错误: 获取虚拟机列表失败: 响应为空")
-                if result.stderr:
-                    logger.error(f"错误信息: {result.stderr}")
+                    logger.warning(f"⚠ 获取虚拟机列表失败，10秒后重试...")
+                    time.sleep(10)
             
             logger.error(f"错误: 未找到虚拟机: {vm_name}")
             return None
@@ -1585,16 +2482,769 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
             return None
         
 
+    def prepare(self):
+        """
+        准备模块：加载配置验证配置
+        """
+        logger.info("="*50)
+        logger.info("开始执行准备模块")
+        logger.info("="*50)
+        
+        try:
+            # 1. 加载配置
+            if not self.load_config():
+                return False
+            
+            # 2. 验证配置
+            if not self.validate_config():
+                return False
+            
+            # 3. 选择配置
+            if not self.select_config():
+                return False
+            
+            # 4. 获取HCI登录凭证
+            if not self.get_hci_credentials():
+                return False
+            
+            # 更新模块状态
+            state = load_module_state()
+            state["prepare"]["status"] = "completed"
+            state["prepare"]["config_loaded"] = True
+            state["prepare"]["timestamp"] = time.time()
+            save_module_state(state)
+            
+            logger.info("="*50)
+            logger.info("准备模块执行完成")
+            logger.info("="*50)
+            return True
+            
+        except Exception as e:
+            logger.error(f"错误: 准备模块执行失败: {e}")
+            traceback.print_exc()
+            return False
+    
+    def download_kb_package(self):
+        """
+        下载KB包模块
+        """
+        logger.info("="*50)
+        logger.info("开始执行下载KB包模块")
+        logger.info("="*50)
+        
+        try:
+            # 加载KB测试配置
+            kb_test_config = load_kb_test_config()
+            if not kb_test_config:
+                logger.error("无法加载KB测试配置，退出程序")
+                return False
+            
+            kb_number = kb_test_config.get('kb_number')
+            target_id = kb_test_config.get('target_id')
+            
+            # 设置下载路径，与test_KB.py保持一致
+            download_path = r"F:\KB"
+            
+            # 调用下载模块
+            download_success, kb_sign_file, kb_file_path, kb_file_name = self.download_kb_packages(kb_number, target_id, download_path)
+            
+            # 存储下载结果
+            self.kb_download_result = {
+                'success': download_success,
+                'kb_sign_file': kb_sign_file,
+                'kb_file_path': kb_file_path,
+                'kb_file_name': kb_file_name
+            }
+            
+            if not download_success:
+                logger.error("KB包下载失败")
+                return False
+            
+            # 更新模块状态
+            state = load_module_state()
+            state["download_kb"]["status"] = "completed"
+            state["download_kb"]["kb_sign_file"] = kb_sign_file
+            state["download_kb"]["kb_file_path"] = kb_file_path
+            state["download_kb"]["kb_file_name"] = kb_file_name
+            state["download_kb"]["timestamp"] = time.time()
+            save_module_state(state)
+            
+            logger.info("="*50)
+            logger.info("下载KB包模块执行完成")
+            logger.info("="*50)
+            return True
+            
+        except Exception as e:
+            logger.error(f"错误: 下载KB包模块执行失败: {e}")
+            traceback.print_exc()
+            return False
+    
+    def check_kb_conflicts(self):
+        """
+        KB冲突检测模块
+        """
+        logger.info("="*50)
+        logger.info("开始执行KB冲突检测模块")
+        logger.info("="*50)
+        
+        try:
+            # 运行KB冲突检测流程
+            if not self.run_kb_compare():
+                logger.error("KB冲突检测流程执行失败")
+                return False
+            
+            # 更新模块状态
+            state = load_module_state()
+            state["kb_conflict"]["status"] = "completed"
+            state["kb_conflict"]["timestamp"] = time.time()
+            save_module_state(state)
+            
+            logger.info("="*50)
+            logger.info("KB冲突检测模块执行完成")
+            logger.info("="*50)
+            return True
+            
+        except Exception as e:
+            logger.error(f"错误: KB冲突检测模块执行失败: {e}")
+            traceback.print_exc()
+            return False
+    
+    def recover_snapshot_and_start_vm(self):
+        """
+        恢复快照与启动虚拟机模块
+        """
+        logger.info("="*50)
+        logger.info("开始执行恢复快照与启动虚拟机模块")
+        logger.info("="*50)
+        
+        try:
+            # 检查准备模块是否已执行
+            state = load_module_state()
+            if state["prepare"]["status"] != "completed":
+                logger.error("错误: 请先执行准备模块")
+                return False
+            
+            # 检查selected_config是否已设置，如果没有，重新执行必要的初始化步骤
+            if self.selected_config is None:
+                logger.warning("警告: selected_config未设置，重新执行配置加载和选择")
+                # 重新加载配置
+                if not self.load_config():
+                    logger.error("错误: 重新加载配置失败")
+                    return False
+                # 重新选择配置
+                if not self.select_config():
+                    logger.error("错误: 重新选择配置失败")
+                    return False
+                # 重新获取HCI登录凭证
+                if not self.get_hci_credentials():
+                    logger.error("错误: 重新获取HCI登录凭证失败")
+                    return False
+            
+            # 获取目标虚拟机信息
+            target_vm = self.selected_config.get('target_vm', {})
+            vm_name = target_vm.get('name')
+            snapshot_name = target_vm.get('snapshot')
+            
+            # 获取虚拟机ID
+            vmid = self.get_vm_id(vm_name)
+            if not vmid:
+                return False
+            
+            # 获取快照列表
+            snapshots = self.get_vm_snapshots(vmid)
+            if not snapshots:
+                return False
+            
+            # 查找指定快照ID
+            snapshot_id = None
+            for snapshot in snapshots:
+                if snapshot.get('name') == snapshot_name:
+                    snapshot_id = snapshot.get('snapid')
+                    break
+            
+            if not snapshot_id:
+                logger.error(f"✗ 未找到快照: {snapshot_name}")
+                return False
+            
+            # 恢复虚拟机快照
+            if not self.recover_vm_snapshot(vmid, snapshot_id):
+                return False
+            
+            # 等待10秒后启动虚拟机
+            logger.info("等待10秒后启动虚拟机...")
+            time.sleep(10)
+            
+            # 启动虚拟机
+            if not self.start_vm(vmid):
+                return False
+            
+            # 更新模块状态
+            state = load_module_state()
+            state["recover_snapshot"]["status"] = "completed"
+            state["recover_snapshot"]["vmid"] = vmid
+            state["recover_snapshot"]["snapshot_id"] = snapshot_id
+            state["recover_snapshot"]["timestamp"] = time.time()
+            save_module_state(state)
+            
+            logger.info("="*50)
+            logger.info("恢复快照与启动虚拟机模块执行完成")
+            logger.info("="*50)
+            return True
+            
+        except Exception as e:
+            logger.error(f"错误: 恢复快照与启动虚拟机模块执行失败: {e}")
+            traceback.print_exc()
+            return False
+    
+    def modify_vm_ip_address(self):
+        """
+        修改IP模块
+        """
+        logger.info("="*50)
+        logger.info("开始执行修改IP模块")
+        logger.info("="*50)
+        
+        try:
+            # 检查准备模块是否已执行
+            state = load_module_state()
+            if state["prepare"]["status"] != "completed":
+                logger.error("错误: 请先执行准备模块")
+                return False
+            
+            # 检查恢复快照模块是否已执行
+            if state["recover_snapshot"]["status"] != "completed":
+                logger.error("错误: 请先执行恢复快照与启动虚拟机模块")
+                return False
+            
+            # 检查selected_config是否已设置，如果没有，重新执行必要的初始化步骤
+            if self.selected_config is None:
+                logger.warning("警告: selected_config未设置，重新执行配置加载和选择")
+                # 重新加载配置
+                if not self.load_config():
+                    logger.error("错误: 重新加载配置失败")
+                    return False
+                # 重新选择配置
+                if not self.select_config():
+                    logger.error("错误: 重新选择配置失败")
+                    return False
+                # 重新获取HCI登录凭证
+                if not self.get_hci_credentials():
+                    logger.error("错误: 重新获取HCI登录凭证失败")
+                    return False
+            
+            # 获取目标虚拟机信息
+            target_vm = self.selected_config.get('target_vm', {})
+            vm_name = target_vm.get('name')
+            network_config = self.config.get('network_config', {})
+            vmid = state["recover_snapshot"]["vmid"]
+            
+            # 修改虚拟机IP地址，添加错误重试机制
+            logger.info("开始修改虚拟机IP地址...")
+            modify_ip_success = False
+            retry_count = 0
+            max_retries = 1  # 最多重试1次
+            
+            while retry_count <= max_retries:
+                if self.modify_vm_ip(vm_name, network_config):
+                    modify_ip_success = True
+                    logger.info("✓ 修改虚拟机IP地址成功")
+                    break
+                else:
+                        retry_count += 1
+                        if retry_count <= max_retries:
+                            logger.warning(f"⚠ 修改虚拟机IP地址失败，10秒后重试...")
+                            time.sleep(10)  # 等待10秒后重试
+                        else:
+                            logger.error("✗ 修改虚拟机IP地址失败，已达到最大重试次数")
+            
+            if not modify_ip_success:
+                return False
+            
+            # 更新模块状态
+            state = load_module_state()
+            state["modify_ip"]["status"] = "completed"
+            state["modify_ip"]["ip_address"] = network_config.get('ip_address')
+            state["modify_ip"]["timestamp"] = time.time()
+            save_module_state(state)
+            
+            logger.info("="*50)
+            logger.info("修改IP模块执行完成")
+            logger.info("="*50)
+            return True
+            
+        except Exception as e:
+            logger.error(f"错误: 修改IP模块执行失败: {e}")
+            traceback.print_exc()
+            return False
+    
+    def recover_customer_config(self):
+        """
+        恢复客户配置模块
+        """
+        logger.info("="*50)
+        logger.info("开始执行恢复客户配置模块")
+        logger.info("="*50)
+        
+        try:
+            # 检查准备模块是否已执行
+            state = load_module_state()
+            if state["prepare"]["status"] != "completed":
+                logger.error("错误: 请先执行准备模块")
+                return False
+            
+            # 检查config是否已设置，如果没有，重新执行必要的初始化步骤
+            if self.config is None:
+                logger.warning("警告: config未设置，重新执行配置加载和选择")
+                # 重新加载配置
+                if not self.load_config():
+                    logger.error("错误: 重新加载配置失败")
+                    return False
+                # 重新选择配置
+                if not self.select_config():
+                    logger.error("错误: 重新选择配置失败")
+                    return False
+                # 重新获取HCI登录凭证
+                if not self.get_hci_credentials():
+                    logger.error("错误: 重新获取HCI登录凭证失败")
+                    return False
+            
+            # 恢复客户配置，添加错误重试机制
+            logger.info("正在恢复客户配置...")
+            customer_config = self.config.get('customer_config')
+            network_config = self.config.get('network_config', {})
+            
+            # 处理两种情况：customer_config可能是字符串或包含file_path的对象
+            if isinstance(customer_config, dict):
+                config_file_path = customer_config.get('file_path')
+            else:
+                config_file_path = customer_config
+            
+            restore_config_success = False
+            retry_count = 0
+            max_retries = 1  # 最多重试1次
+            
+            while retry_count <= max_retries:
+                if config_file_path:
+                    try:
+                        with sync_playwright() as p:
+                            peizhi.run(
+                                p,
+                                config_file_path=config_file_path,
+                                device_ip=self.get_clean_ip(network_config.get('ip_address')),
+                                login_username=self.config.get('login_credentials', {}).get('username'),
+                                login_password=self.config.get('login_credentials', {}).get('password')
+                            )
+                        logger.info("成功: 客户配置恢复完成")
+                        restore_config_success = True
+                        break
+                    except Exception as e:
+                        retry_count += 1
+                        if retry_count <= max_retries:
+                            logger.warning(f"⚠ 恢复客户配置失败: {e}，10秒后重试...")
+                            time.sleep(10)  # 等待10秒后重试
+                        else:
+                            logger.error(f"✗ 恢复客户配置失败: {e}，已达到最大重试次数")
+                else:
+                    logger.error("错误: 客户配置文件路径未配置")
+                    break
+            
+            if not restore_config_success:
+                return False
+            
+            # 更新模块状态
+            state = load_module_state()
+            state["recover_customer_config"]["status"] = "completed"
+            state["recover_customer_config"]["timestamp"] = time.time()
+            save_module_state(state)
+            
+            logger.info("="*50)
+            logger.info("恢复客户配置模块执行完成")
+            logger.info("="*50)
+            return True
+            
+        except Exception as e:
+            logger.error(f"错误: 恢复客户配置模块执行失败: {e}")
+            traceback.print_exc()
+            return False
+    
+    def check_vm_reboot(self):
+        """
+        检测重启模块
+        """
+        logger.info("="*50)
+        logger.info("开始执行检测重启模块")
+        logger.info("="*50)
+        
+        try:
+            # 检查准备模块是否已执行
+            state = load_module_state()
+            if state["prepare"]["status"] != "completed":
+                logger.error("错误: 请先执行准备模块")
+                return False
+            
+            # 检查恢复快照模块是否已执行
+            if state["recover_snapshot"]["status"] != "completed":
+                logger.error("错误: 请先执行恢复快照与启动虚拟机模块")
+                return False
+            
+            # 检查selected_config是否已设置，如果没有，重新执行必要的初始化步骤
+            if self.selected_config is None:
+                logger.warning("警告: selected_config未设置，重新执行配置加载和选择")
+                # 重新加载配置
+                if not self.load_config():
+                    logger.error("错误: 重新加载配置失败")
+                    return False
+                # 重新选择配置
+                if not self.select_config():
+                    logger.error("错误: 重新选择配置失败")
+                    return False
+                # 重新获取HCI登录凭证
+                if not self.get_hci_credentials():
+                    logger.error("错误: 重新获取HCI登录凭证失败")
+                    return False
+            
+            # 获取目标虚拟机信息
+            target_vm = self.selected_config.get('target_vm', {})
+            vm_name = target_vm.get('name')
+            network_config = self.config.get('network_config', {})
+            vmid = state["recover_snapshot"]["vmid"]
+            
+            # 检测虚拟机是否重启完毕
+            logger.info("正在检测虚拟机重启状态...")
+            if not self.check_vm_reboot_completed(vm_name, network_config, vmid):
+                logger.error("错误: 虚拟机重启检测失败")
+                return False
+            logger.info("成功: 虚拟机重启检测完成")
+            
+            # 更新模块状态
+            state = load_module_state()
+            state["check_reboot"]["status"] = "completed"
+            state["check_reboot"]["timestamp"] = time.time()
+            save_module_state(state)
+            
+            logger.info("="*50)
+            logger.info("检测重启模块执行完成")
+            logger.info("="*50)
+            return True
+            
+        except Exception as e:
+            logger.error(f"错误: 检测重启模块执行失败: {e}")
+            traceback.print_exc()
+            return False
+    
+    def upgrade_kb_package(self):
+        """
+        升级KB包模块
+        """
+        logger.info("="*50)
+        logger.info("开始执行升级KB包模块")
+        logger.info("="*50)
+        
+        try:
+            # 检查准备模块是否已执行
+            state = load_module_state()
+            if state["prepare"]["status"] != "completed":
+                logger.error("错误: 请先执行准备模块")
+                return False
+            
+            # 检查下载KB包模块是否已执行
+            if state["download_kb"]["status"] != "completed":
+                logger.error("错误: 请先执行下载KB包模块")
+                return False
+            
+            # 检查selected_config是否已设置，如果没有，重新执行必要的初始化步骤
+            if self.selected_config is None:
+                logger.warning("警告: selected_config未设置，重新执行配置加载和选择")
+                # 重新加载配置
+                if not self.load_config():
+                    logger.error("错误: 重新加载配置失败")
+                    return False
+                # 重新选择配置
+                if not self.select_config():
+                    logger.error("错误: 重新选择配置失败")
+                    return False
+                # 重新获取HCI登录凭证
+                if not self.get_hci_credentials():
+                    logger.error("错误: 重新获取HCI登录凭证失败")
+                    return False
+            
+            # 获取目标虚拟机信息
+            target_vm = self.selected_config.get('target_vm', {})
+            vm_name = target_vm.get('name')
+            network_config = self.config.get('network_config', {})
+            
+            # 获取登录凭证
+            login_username = self.config.get('login_credentials', {}).get('username')
+            login_password = self.config.get('login_credentials', {}).get('password')
+            
+            # 从模块状态获取下载结果
+            kb_sign_file = state["download_kb"]["kb_sign_file"]
+            kb_file_path = state["download_kb"]["kb_file_path"]
+            kb_file_name = state["download_kb"]["kb_file_name"]
+            
+            if not kb_sign_file:
+                logger.error("❌ 未找到KB SIGN文件，跳过更新操作")
+                return False
+            
+            # 升级KB包，添加错误重试机制
+            logger.info("开始升级KB包...")
+            upgrade_kb_success = False
+            retry_count = 0
+            max_retries = 1  # 最多重试1次
+            
+            while retry_count <= max_retries:
+                # 调用升级模块
+                update_success = self.update_kb_packages(vm_name, network_config, kb_sign_file, login_username, login_password)
+                
+                if update_success:
+                    upgrade_kb_success = True
+                    logger.info("✓ 升级KB包成功")
+                    break
+                else:
+                        retry_count += 1
+                        if retry_count <= max_retries:
+                            logger.warning(f"⚠ 升级KB包失败，10秒后重试...")
+                            time.sleep(10)  # 等待10秒后重试
+                        else:
+                            logger.error("✗ 升级KB包失败，已达到最大重试次数")
+            
+            if not upgrade_kb_success:
+                return False
+            
+            # 更新模块状态
+            state = load_module_state()
+            state["upgrade_kb"]["status"] = "completed"
+            state["upgrade_kb"]["timestamp"] = time.time()
+            save_module_state(state)
+            
+            logger.info("="*50)
+            logger.info("升级KB包模块执行完成")
+            logger.info("="*50)
+            return True
+            
+        except Exception as e:
+            logger.error(f"错误: 升级KB包模块执行失败: {e}")
+            traceback.print_exc()
+            return False
+    
+    def run_kb_scan_and_report(self):
+        """
+        KB扫描与报告模块
+        """
+        logger.info("="*50)
+        logger.info("开始执行KB扫描与报告模块")
+        logger.info("="*50)
+        
+        try:
+            # 检查准备模块是否已执行
+            state = load_module_state()
+            if state["prepare"]["status"] != "completed":
+                logger.error("错误: 请先执行准备模块")
+                return False
+            
+            # 检查下载KB包模块是否已执行
+            if state["download_kb"]["status"] != "completed":
+                logger.error("错误: 请先执行下载KB包模块")
+                return False
+            
+            # 从模块状态获取下载结果
+            kb_file_path = state["download_kb"]["kb_file_path"]
+            kb_file_name = state["download_kb"]["kb_file_name"]
+            
+            if not kb_file_path:
+                logger.error("未获取到KB包路径，跳过kb_scan和kb_scan_report")
+                return False
+            
+            # 启动kb_scan和kb_scan_report的线程
+            import threading
+            import subprocess
+            
+            def run_kb_scan_and_report_thread():
+                """
+                运行kb_scan和kb_scan_report
+                """
+                try:
+                    if kb_file_path:
+                        logger.info("\n" + "=" * 50)
+                        logger.info("开始执行KB扫描...")
+                        logger.info("=" * 50)
+                        
+                        # 运行kb_scan.py，传递file_path参数
+                        logger.info(f"启动kb_scan.py，文件路径: {kb_file_path}")
+                        kb_scan_cmd = ["python", "KB_scan.py", "--file_path", kb_file_path]
+                        logger.info(f"执行命令: {kb_scan_cmd}")
+                        
+                        # 当命令以列表形式传递时，使用shell=False
+                        kb_scan_process = subprocess.Popen(kb_scan_cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False)
+                        
+                        # 等待kb_scan.py运行结束并获取输出
+                        stdout_bytes, stderr_bytes = kb_scan_process.communicate()
+                        exit_code = kb_scan_process.returncode
+                        
+                        # 处理编码
+                        def decode_output(output_bytes):
+                            if not output_bytes:
+                                return ""
+                            try:
+                                # 尝试使用多种编码解码
+                                encoding_attempts = ['utf-8', 'gbk', 'utf-16', 'latin-1']
+                                for encoding in encoding_attempts:
+                                    try:
+                                        return output_bytes.decode(encoding)
+                                    except UnicodeDecodeError:
+                                        continue
+                                # 如果所有编码都失败，使用replace模式
+                                return output_bytes.decode('utf-8', errors='replace')
+                            except Exception:
+                                return str(output_bytes)
+                        
+                        stdout = decode_output(stdout_bytes)
+                        stderr = decode_output(stderr_bytes)
+                        
+                        if exit_code == 0:
+                            logger.info("kb_scan.py运行完成，退出码: 0")
+                            if stdout:
+                                logger.info(f"kb_scan.py输出: {stdout}")
+                        else:
+                            logger.error(f"kb_scan.py运行失败，退出码: {exit_code}")
+                            if stderr:
+                                logger.error(f"kb_scan.py错误: {stderr}")
+                            if stdout:
+                                logger.info(f"kb_scan.py输出: {stdout}")
+                        
+                        if kb_file_name:
+                            # 运行kb_scan_report.py，传递kb_package参数
+                            def run_kb_scan_report():
+                                logger.info("\n" + "=" * 50)
+                                logger.info("开始执行KB扫描报告...")
+                                logger.info("=" * 50)
+                                
+                                logger.info(f"启动kb_scan_report.py，KB包名称: {kb_file_name}")
+                                kb_scan_report_cmd = ["python", "kb_scan_report.py", "--target", kb_file_name]
+                                logger.info(f"执行命令: {kb_scan_report_cmd}")
+                                
+                                # 当命令以列表形式传递时，使用shell=False
+                                kb_scan_report_process = subprocess.Popen(kb_scan_report_cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False)
+                                stdout_bytes, stderr_bytes = kb_scan_report_process.communicate()
+                                exit_code = kb_scan_report_process.returncode
+                                
+                                # 处理编码
+                                def decode_output(output_bytes):
+                                    if not output_bytes:
+                                        return ""
+                                    try:
+                                        # 尝试使用多种编码解码
+                                        encoding_attempts = ['utf-8', 'gbk', 'utf-16', 'latin-1']
+                                        for encoding in encoding_attempts:
+                                            try:
+                                                return output_bytes.decode(encoding)
+                                            except UnicodeDecodeError:
+                                                continue
+                                        # 如果所有编码都失败，使用replace模式
+                                        return output_bytes.decode('utf-8', errors='replace')
+                                    except Exception:
+                                        return str(output_bytes)
+                                
+                                stdout = decode_output(stdout_bytes)
+                                stderr = decode_output(stderr_bytes)
+                                
+                                if exit_code == 0:
+                                    logger.info("kb_scan_report.py运行完成，退出码: 0")
+                                    if stdout:
+                                        logger.info(f"kb_scan_report.py输出: {stdout}")
+                                    return True
+                                else:
+                                    logger.error(f"kb_scan_report.py运行失败，退出码: {exit_code}")
+                                    if stderr:
+                                        logger.error(f"kb_scan_report.py错误: {stderr}")
+                                    if stdout:
+                                        logger.info(f"kb_scan_report.py输出: {stdout}")
+                                    return False
+                            
+                            # 直接运行KB报告程序
+                            report_success = run_kb_scan_report()
+                            
+                            # 如果没有读到，则等待两分钟再读
+                            if not report_success:
+                                logger.info("KB报告程序运行失败，等待两分钟后重试...")
+                                time.sleep(120)
+                                logger.info("重新执行KB扫描报告...")
+                                run_kb_scan_report()
+                        else:
+                            logger.error("未获取到KB包名称，跳过kb_scan_report")
+                    else:
+                        logger.error("未获取到KB包路径，跳过kb_scan和kb_scan_report")
+                except Exception as e:
+                    logger.error(f"运行kb_scan和kb_scan_report时出错: {e}")
+                    import traceback
+                    traceback.print_exc()
+            
+            # 启动kb_scan和kb_scan_report线程
+            kb_scan_thread = threading.Thread(target=run_kb_scan_and_report_thread)
+            kb_scan_thread.start()
+            logger.info("kb_scan线程已启动")
+            
+            # 等待kb_scan线程完成
+            logger.info("等待kb_scan线程完成...")
+            kb_scan_thread.join()
+            logger.info("kb_scan线程已完成")
+            
+            # 更新模块状态
+            state = load_module_state()
+            state["kb_scan"]["status"] = "completed"
+            state["kb_scan"]["timestamp"] = time.time()
+            save_module_state(state)
+            
+            logger.info("="*50)
+            logger.info("KB扫描与报告模块执行完成")
+            logger.info("="*50)
+            return True
+            
+        except Exception as e:
+            logger.error(f"错误: KB扫描与报告模块执行失败: {e}")
+            traceback.print_exc()
+            return False
+
 if __name__ == "__main__":
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(description="虚拟机管理工作流脚本")
+    parser.add_argument("--module", choices=[
+        "prepare", "download_kb", "kb_conflict", "recover_snapshot", 
+        "modify_ip", "recover_customer_config", "check_reboot", 
+        "upgrade_kb", "kb_scan", "all"
+    ], default="all", help="指定运行的模块")
+    args = parser.parse_args()
+    
     # 创建工作流实例
     workflow = VMManagementWorkflow()
     
-    # 运行完整工作流
-    success = workflow.run_workflow()
+    # 运行指定模块
+    success = False
+    if args.module == "all":
+        # 运行完整工作流
+        success = workflow.run_workflow()
+    elif args.module == "prepare":
+        success = workflow.prepare()
+    elif args.module == "download_kb":
+        success = workflow.download_kb_package()
+    elif args.module == "kb_conflict":
+        success = workflow.check_kb_conflicts()
+    elif args.module == "recover_snapshot":
+        success = workflow.recover_snapshot_and_start_vm()
+    elif args.module == "modify_ip":
+        success = workflow.modify_vm_ip_address()
+    elif args.module == "recover_customer_config":
+        success = workflow.recover_customer_config()
+    elif args.module == "check_reboot":
+        success = workflow.check_vm_reboot()
+    elif args.module == "upgrade_kb":
+        success = workflow.upgrade_kb_package()
+    elif args.module == "kb_scan":
+        success = workflow.run_kb_scan_and_report()
     
     if success:
-        logger.info("工作流执行成功！")
+        logger.info(f"{args.module} 模块执行成功！")
         sys.exit(0)
     else:
-        logger.error("工作流执行失败！")
+        logger.error(f"{args.module} 模块执行失败！")
         sys.exit(1)
