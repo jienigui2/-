@@ -1460,10 +1460,10 @@ def schedule_cleanup():
             # 获取当前时间
             now = datetime.datetime.now()
             
-            # 计算到今天24:00的时间差
-            next_cleanup = now.replace(hour=24, minute=0, second=0, microsecond=0)
-            if now.hour >= 24:
-                # 如果当前时间已经过了24:00，设置为明天24:00
+            # 计算到今天午夜(0:00)的时间差
+            next_cleanup = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            if now.hour >= 0:
+                # 如果当前时间已经过了今天午夜，设置为明天午夜
                 next_cleanup += datetime.timedelta(days=1)
             
             # 计算等待时间（秒）

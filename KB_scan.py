@@ -112,25 +112,31 @@ def run(playwright: Playwright, config) -> None:
     logger.info("✓ 已勾选 Virustotal")
     
     logger.info("正在上传文件...")
-    # 点击上传按钮
-    page.get_by_role("button", name="upload 上传文件").click()
-    
-    # 等待文件输入框出现（使用attached状态，因为文件输入框通常是隐藏的）
-    logger.info("等待文件输入框...")
-    page.wait_for_selector('input[type="file"]', timeout=10000, state="attached")
-    logger.info("设置上传文件...")
-    page.locator('input[type="file"]').set_input_files(file_path)
-    
-    # 等待上传进度从0/1变为1/1
-    logger.info("等待上传完成...")
-    
-    # 等待上传进度元素出现
-    page.get_by_text("上传进度（0/1）").wait_for(timeout=60000)
-    logger.info("文件开始上传...")
-    
-    # 等待上传进度变为1/1
-    page.get_by_text("上传进度（1/1）").wait_for(timeout=300000)
-    logger.info("✓ 文件上传完成！")
+    try:
+        # 点击上传按钮
+        page.get_by_role("button", name="upload 上传文件").click()
+        
+        # 等待文件输入框出现（使用attached状态，因为文件输入框通常是隐藏的）
+        logger.info("等待文件输入框...")
+        page.wait_for_selector('input[type="file"]', timeout=10000, state="attached")
+        logger.info("设置上传文件...")
+        page.locator('input[type="file"]').set_input_files(file_path)
+        
+        # 等待上传进度从0/1变为1/1
+        logger.info("等待上传完成...")
+        
+        # 等待上传进度元素出现
+        page.get_by_text("上传进度（0/1）").wait_for(timeout=60000)
+        logger.info("文件开始上传...")
+        
+        # 等待上传进度变为1/1
+        page.get_by_text("上传进度（1/1）").wait_for(timeout=300000)
+        logger.info("✓ 文件上传完成！")
+    except Exception as upload_error:
+        logger.error(f"❌ 文件上传失败: {upload_error}")
+        context.close()
+        browser.close()
+        return
     
     # 点击开始扫描按钮
     logger.info("点击开始扫描按钮...")

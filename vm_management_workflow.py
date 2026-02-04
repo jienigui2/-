@@ -1816,10 +1816,16 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
           
                 # 跳转到固件升级页面
                 logger.info('正在跳转到升级页面...')
-                update_page.goto(f'https://{device_ip}/WLAN/index.php#/maintain/DeviceUpdate',
-                         wait_until='domcontentloaded',
-                         timeout=30000)
-                logger.info('✓ 已跳转到升级页面')
+                try:
+                    update_page.goto(f'https://{device_ip}/WLAN/index.php#/maintain/DeviceUpdate',
+                             wait_until='domcontentloaded',
+                             timeout=30000)
+                    logger.info('✓ 已跳转到升级页面')
+                except Exception as e:
+                    logger.error(f'❌ 跳转到升级页面失败: {e}')
+                    update_context.close()
+                    browser.close()
+                    return False
                 
                 # 等待升级页面加载
                 time.sleep(5)
@@ -1834,13 +1840,22 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
                 
                 # 上传KB SIGN文件
                 logger.info('正在上传补丁包...')
-                file_input = update_page.locator('input[type="file"]').first
-                if file_input.is_visible():
-                    file_input.set_input_files(kb_sign_file)
-                    logger.info(f'✓ 已上传补丁包: {os.path.basename(kb_sign_file)}')
-                    time.sleep(5)  # 等待上传完成
-                else:
-                    logger.error('❌ 未找到文件上传输入框')
+                try:
+                    file_input = update_page.locator('input[type="file"]').first
+                    if file_input.is_visible():
+                        # 设置更长的超时时间以避免文件上传超时
+                        update_page.set_default_timeout(120000)  # 120秒
+                        file_input.set_input_files(kb_sign_file)
+                        logger.info(f'✓ 已上传补丁包: {os.path.basename(kb_sign_file)}')
+                        # 增加等待时间，确保大文件上传完成
+                        time.sleep(15)  # 等待15秒
+                    else:
+                        logger.error('❌ 未找到文件上传输入框')
+                        update_context.close()
+                        browser.close()
+                        return False
+                except Exception as upload_error:
+                    logger.error(f'❌ 文件上传失败: {upload_error}')
                     update_context.close()
                     browser.close()
                     return False
@@ -1865,8 +1880,12 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
                 
                 # 等待页面自动刷新
                 logger.info('等待页面自动刷新...')
-                update_page.wait_for_load_state('networkidle', timeout=30000)
-                logger.info('✓ 页面已自动刷新完成')
+                try:
+                    update_page.wait_for_load_state('networkidle', timeout=60000)  # 增加超时时间到60秒
+                    logger.info('✓ 页面已自动刷新完成')
+                except Exception as refresh_error:
+                    logger.error(f'❌ 页面自动刷新失败: {refresh_error}')
+                    return False
             
                 logger.info(f'\n✓ 虚拟机 {vm_name} KB包升级成功！')
                 logger.info('='*50)
@@ -2034,7 +2053,7 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
             target_id = kb_test_config.get('target_id')
             
             # 设置下载路径，与test_KB.py保持一致
-            download_path = r"F:\KB"
+            download_path = r"C:\KB"
             
             # 调用下载模块
             download_success, kb_sign_file, kb_file_path, kb_file_name = self.download_kb_packages(kb_number, target_id, download_path)
@@ -2543,7 +2562,7 @@ curl ^"https://{ip}/vapi/json/cluster/vm/{vmid}/snapshot^" ^
             target_id = kb_test_config.get('target_id')
             
             # 设置下载路径，与test_KB.py保持一致
-            download_path = r"F:\KB"
+            download_path = r"C:\KB"
             
             # 调用下载模块
             download_success, kb_sign_file, kb_file_path, kb_file_name = self.download_kb_packages(kb_number, target_id, download_path)
